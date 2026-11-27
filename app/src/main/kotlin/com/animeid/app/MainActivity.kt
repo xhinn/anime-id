@@ -153,6 +153,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.coerceIn
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -3640,11 +3641,18 @@ fun LayarBeranda(
                                 }
                             }
                         }
+                        // Kartu poster portrait (2:3) di tengah; poster kiri-kanan mengintip.
+                        val lebarLayar = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
+                        val lebarKartu = (lebarLayar * 0.68f).coerceIn(220.dp, 300.dp)
+                        val tinggiKartu = lebarKartu * 1.5f
                         androidx.compose.foundation.pager.HorizontalPager(
                             state = pager,
                             modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 20.dp),
-                            pageSpacing = 10.dp,
+                            contentPadding = PaddingValues(horizontal = (lebarLayar - lebarKartu) / 2),
+                            pageSize =
+                                androidx.compose.foundation.pager.PageSize
+                                    .Fixed(lebarKartu),
+                            pageSpacing = 12.dp,
                         ) { halaman ->
                             val u = unggulan[halaman]
                             val meta =
@@ -3662,37 +3670,33 @@ fun LayarBeranda(
                             Box(
                                 Modifier
                                     .fillMaxWidth()
-                                    .height(262.dp)
+                                    .height(tinggiKartu)
                                     .graphicsLayer {
                                         val o =
                                             kotlin.math
                                                 .abs(
                                                     (pager.currentPage - halaman) + pager.currentPageOffsetFraction,
                                                 ).coerceIn(0f, 1f)
-                                        val sk = 1f - 0.06f * o
+                                        val sk = 1f - 0.08f * o
                                         scaleX = sk
                                         scaleY = sk
-                                        alpha = 1f - 0.45f * o
+                                        alpha = 1f - 0.55f * o
                                     }.clip(RoundedCornerShape(30.dp))
                                     .border(1.dp, Color(0x1FFFFFFF), RoundedCornerShape(30.dp))
                                     .clickable { onDetail(u) },
                             ) {
                                 Gambar(
-                                    u.banner,
-                                    Modifier.fillMaxSize().graphicsLayer {
-                                        val o = (pager.currentPage - halaman) + pager.currentPageOffsetFraction
-                                        scaleX = 1.16f
-                                        scaleY = 1.16f
-                                        translationX = o * size.width * 0.12f
-                                    },
-                                    fokusX = u.fokus,
+                                    u.poster.ifBlank { u.banner },
+                                    Modifier.fillMaxSize(),
+                                    fokusX = if (u.poster.isBlank()) u.fokus else 0f,
                                 )
                                 Box(
                                     Modifier.fillMaxSize().background(
                                         Brush.verticalGradient(
                                             0.0f to Latar.copy(alpha = 0x4D / 255f),
-                                            0.25f to Color.Transparent,
-                                            0.5f to Latar.copy(alpha = 0x8C / 255f),
+                                            0.2f to Color.Transparent,
+                                            0.5f to Latar.copy(alpha = 0x40 / 255f),
+                                            0.72f to Latar.copy(alpha = 0xB0 / 255f),
                                             1.0f to Latar.copy(alpha = 0xF2 / 255f),
                                         ),
                                     ),
@@ -3701,7 +3705,7 @@ fun LayarBeranda(
                                 Row(
                                     Modifier
                                         .align(Alignment.TopStart)
-                                        .padding(14.dp)
+                                        .padding(16.dp)
                                         .clip(CircleShape)
                                         .background(kaca)
                                         .border(1.dp, garisKaca, CircleShape)
@@ -3717,7 +3721,7 @@ fun LayarBeranda(
                                     Row(
                                         Modifier
                                             .align(Alignment.TopEnd)
-                                            .padding(14.dp)
+                                            .padding(16.dp)
                                             .clip(CircleShape)
                                             .background(kaca)
                                             .border(1.dp, garisKaca, CircleShape)
@@ -3729,36 +3733,37 @@ fun LayarBeranda(
                                         Text(fmtSkor(u.skor), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Teks)
                                     }
                                 }
-                                Column(Modifier.align(Alignment.BottomStart).padding(horizontal = 18.dp, vertical = 18.dp)) {
+                                Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(16.dp)) {
                                     Text(
                                         rapikanJudul(u.judul),
-                                        fontSize = 25.sp,
+                                        fontSize = 26.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         letterSpacing = (-0.7).sp,
                                         color = Teks,
                                         maxLines = 2,
                                         overflow = TextOverflow.Ellipsis,
-                                        lineHeight = 28.sp,
+                                        lineHeight = 29.sp,
                                     )
                                     Spacer(Modifier.height(6.dp))
                                     Text(
                                         meta,
-                                        fontSize = 12.sp,
+                                        fontSize = 11.5.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = Teks.copy(alpha = 0.85f),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                     Spacer(Modifier.height(14.dp))
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                         Row(
                                             Modifier
+                                                .weight(1f)
                                                 .shadow(10.dp, RoundedCornerShape(22.dp), ambientColor = Zamrud, spotColor = Zamrud)
                                                 .clip(RoundedCornerShape(22.dp))
                                                 .background(Brush.horizontalGradient(listOf(ZamrudTerang, Zamrud, ZamrudGelap)))
                                                 .clickable { onPutar(u, 0) }
-                                                .height(44.dp)
-                                                .padding(start = 18.dp, end = 24.dp),
+                                                .height(46.dp),
+                                            horizontalArrangement = Arrangement.Center,
                                             verticalAlignment = Alignment.CenterVertically,
                                         ) {
                                             Ikon("putar", Modifier.size(18.dp), DiAtasZamrud, terisi = true)
@@ -3769,7 +3774,7 @@ fun LayarBeranda(
                                         // Simpan ke Favorit
                                         Box(
                                             Modifier
-                                                .size(44.dp)
+                                                .size(46.dp)
                                                 .clip(CircleShape)
                                                 .background(kaca)
                                                 .border(1.dp, garisKaca, CircleShape)
