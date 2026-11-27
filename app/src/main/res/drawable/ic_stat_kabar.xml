@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ikon notifikasi: huruf A yang sama dengan ikon aplikasi (satu warna, sesuai aturan Android) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <group android:scaleX="0.04435" android:scaleY="0.04435" android:translateX="-10.683" android:translateY="-10.683">
+        <path android:fillColor="#FFFFFF" android:fillType="evenOdd" android:pathData="M512,286 L689,737 L612,737 Q606,737 604,730 L572,628 L430,712 Q400,737 365,737 L334,737 Z M512,474 L555,591 L468,591 Z"/>
+    </group>
+</vector>
