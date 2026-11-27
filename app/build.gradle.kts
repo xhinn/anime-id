@@ -5,6 +5,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
 }
 
 android {
@@ -81,10 +83,12 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+    implementation(libs.firebase.crashlytics)
     implementation(libs.media3.datasource.okhttp)
     implementation(libs.work.runtime.ktx)
     testImplementation(libs.junit)
 }
+
 
 
 
