@@ -25,7 +25,9 @@ android {
     defaultConfig {
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
+        // versionCode naik otomatis dari nomor run GitHub Actions (1, 2, 3, ...),
+        // jadi tiap build punya nomor versi unik. Build lokal (tanpa env) = 1.
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
         versionName = "1.0.0"
     }
 
@@ -75,6 +77,7 @@ dependencies {
     implementation("androidx.media3:media3-datasource-okhttp:1.11.1")
     implementation("androidx.work:work-runtime-ktx:2.12.0")
 }
+
 
 
 
