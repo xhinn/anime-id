@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class, androidx.media3.common.util.UnstableApi::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 
 package com.animeid.app
 
@@ -151,6 +151,7 @@ import kotlin.math.sin
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -5775,7 +5776,7 @@ private fun fmtWaktuExo(ms: Int): String {
 
 // Cache segmen HLS (maks 200 MB, buang yang terlama): putar ulang & geser mundur
 // tidak mengunduh ulang, dan segmen yang sudah dimuat tetap lancar saat sinyal naik-turun.
-@OptIn(androidx.media3.common.util.UnstableApi::class)
+@OptIn(UnstableApi::class)
 object CachePemutar {
     // Satu klien OkHttp dipakai bersama oleh pemutar dan pemanasan: HTTP/2 (banyak permintaan
     // dalam satu koneksi), koneksi dipakai ulang antar segmen (tanpa handshake TCP/TLS baru
@@ -5810,7 +5811,7 @@ object CachePemutar {
 // rendisi terendah (3 segmen), ditulis ke cache yang sama dengan pemutar. Hanya dijalankan
 // di jaringan tidak berbayar (Wi-Fi), saat episode berjalan >=70% dan penyangga
 // sudah cukup. Semua kegagalan diabaikan; tidak pernah mengganggu pemutaran.
-@OptIn(androidx.media3.common.util.UnstableApi::class)
+@OptIn(UnstableApi::class)
 object PemanasanVideo {
     private val sudah = java.util.Collections.synchronizedSet(HashSet<String>())
 
@@ -5895,7 +5896,7 @@ object PemanasanVideo {
 }
 
 @Composable
-@OptIn(androidx.media3.common.util.UnstableApi::class)
+@OptIn(UnstableApi::class)
 fun PemutarExo(
     jalurEp: String,
     jalurBerikut: String? = null,
@@ -6981,6 +6982,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
 
 
 
