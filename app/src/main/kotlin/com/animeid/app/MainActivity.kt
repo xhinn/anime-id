@@ -5258,6 +5258,7 @@ fun LayarUnduhan(onPutar: (Judul, Int) -> Unit = { _, _ -> }) {
 
 // ================= Akun =================
 @Composable
+@UnstableApi
 fun LayarAkun(
     akun: AkunGoogle?,
     onMasukBerhasil: (AkunGoogle) -> Unit,
