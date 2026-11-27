@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ktlint)
 }
 
 android {
@@ -54,6 +55,12 @@ kotlin {
     }
 }
 
+// ktlint 1.7.1 = versi yang sama dengan ktlint CLI lokal, supaya hasil
+// format lokal dan hasil ktlintCheck di CI selalu sama.
+ktlint {
+    version.set("1.7.1")
+}
+
 dependencies {
     implementation(libs.activity.compose)
     implementation(libs.compose.ui)
@@ -77,6 +84,7 @@ dependencies {
     implementation(libs.media3.datasource.okhttp)
     implementation(libs.work.runtime.ktx)
 }
+
 
 
 
