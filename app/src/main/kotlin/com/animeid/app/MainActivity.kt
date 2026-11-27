@@ -352,6 +352,10 @@ data class Judul(
     // film. Dulu label Film diturunkan dari jumlahEpisode <= 1 sehingga seri satu
     // episode ikut berlabel Film — penurunan itu dibuang 2026-11-25.
     val film: Boolean = false,
+    // tipe tayang dari katalog (bidang "tipe" atau "format" pada entri indeks / berkas
+    // judul): TV, ONA, OVA, Film, Special. Kosong = belum dicatat katalog; tampilan
+    // memakai tipeJudul() yang punya cadangan.
+    val tipe: String = "",
 ) {
     val jumlahEpisode: Int get() = if (episodes.isNotEmpty()) episodes.size else jumlahTercatat
 }
@@ -496,6 +500,36 @@ fun lencanaVarian(judul: String): String? {
             dub?.let { "DUB $it" },
         )
     return if (bagian.isEmpty()) null else bagian.joinToString(" • ")
+}
+
+// Samakan penulisan tipe tayang dari katalog: TV, ONA, OVA, Film, Special.
+fun normalTipe(s: String): String =
+    when (
+        s
+            .trim()
+            .uppercase()
+            .replace(' ', '_')
+            .replace('-', '_')
+    ) {
+        "TV", "TV_SHORT", "SERIES", "SERI" -> "TV"
+        "ONA", "WEB" -> "ONA"
+        "OVA", "OAD" -> "OVA"
+        "MOVIE", "FILM" -> "Film"
+        "SPECIAL", "TV_SPECIAL" -> "Special"
+        else -> ""
+    }
+
+// Tipe yang ditampilkan di kartu. Urutan: bidang katalog, penanda film, kata penanda di
+// judul (OVA / ONA / Special / Movie), terakhir TV sebagai bawaan seri. Judul ONA tanpa
+// bidang "tipe" di katalog akan terbaca TV sampai katalog mencatatnya.
+fun tipeJudul(j: Judul): String {
+    normalTipe(j.tipe).let { if (it.isNotEmpty()) return it }
+    if (j.film) return "Film"
+    Regex("""\b(OVA|ONA|Special|Movie)\b""", RegexOption.IGNORE_CASE)
+        .find(j.judul)
+        ?.let { normalTipe(it.groupValues[1]) }
+        ?.let { if (it.isNotEmpty()) return it }
+    return "TV"
 }
 
 fun labelStatus(status: String): String =
@@ -671,6 +705,7 @@ object KatalogSumber {
                         jumlahTercatat = o.jInt("jumlahEpisode"),
                         fokus = o.jDesimal("fokus", 0.0).toFloat(),
                         film = o.jBenar("film", false),
+                        tipe = o.jTeks("tipe").ifBlank { o.jTeks("format") },
                     ),
                 )
             }
@@ -746,6 +781,7 @@ object KatalogSumber {
                 banner = o.jTeks("banner", dasarJ.banner),
                 fokus = if (o.containsKey("fokus")) o.jDesimal("fokus").toFloat() else dasarJ.fokus,
                 film = if (o.containsKey("film")) o.jBenar("film", false) else dasarJ.film,
+                tipe = o.jTeks("tipe").ifBlank { o.jTeks("format") }.ifBlank { dasarJ.tipe },
                 sinopsis = o.jTeks("sinopsis", dasarJ.sinopsis),
                 tahun = if (o.containsKey("tahun")) o.jInt("tahun") else dasarJ.tahun,
                 skor = if (o.containsKey("skor")) o.jDesimal("skor") else dasarJ.skor,
@@ -2534,6 +2570,20 @@ fun KartuPoster(
                     color = DiAtasZamrud,
                 )
             }
+            // lencana tipe tayang (TV / ONA / OVA / Film): selalu di bawah kanan poster
+            Text(
+                tipeJudul(j),
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Latar.copy(alpha = 0xCC / 255f))
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = Teks,
+            )
             val varian = lencanaVarian(j.judul)
             if (varian != null && peringkat == null) {
                 Text(
