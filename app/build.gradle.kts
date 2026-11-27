@@ -72,7 +72,7 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.6.3")
     implementation("androidx.core:core-splashscreen:1.2.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")
-    implementation("com.google.firebase:firebase-auth:23.0.0")
+    implementation("com.google.firebase:firebase-auth:25.0.0")
     implementation("com.google.firebase:firebase-firestore:25.0.0")
     implementation("androidx.media3:media3-datasource-okhttp:1.11.1")
     implementation("androidx.work:work-runtime-ktx:2.12.0")
