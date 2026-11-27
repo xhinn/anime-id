@@ -6914,6 +6914,7 @@ fun Aplikasi() {
     }
 }
 
+@UnstableApi
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         // Layar pembuka gelap: ditahan sampai katalog siap (maks. 1 detik) lalu
@@ -6985,6 +6986,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
 
 
 
