@@ -5305,11 +5305,15 @@ fun LayarPutar(
             simpanSekarang()
         }
     }
+    val sedangKeluar by rememberUpdatedState(keluar)
     DisposableEffect(aktivitas) {
         val pemilik = aktivitas as? androidx.lifecycle.LifecycleOwner
         val pengamat = androidx.lifecycle.LifecycleEventObserver { _, kejadian ->
             if (kejadian == androidx.lifecycle.Lifecycle.Event.ON_PAUSE || kejadian == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
                 simpanSekarang()
+            }
+            if (kejadian == androidx.lifecycle.Lifecycle.Event.ON_RESUME && !sedangKeluar) {
+                KeadaanPip.halamanPutarAktif = true
             }
         }
         pemilik?.lifecycle?.addObserver(pengamat)
@@ -5459,6 +5463,10 @@ fun LayarPutar(
                                             type = "text/plain"
                                             putExtra(Intent.EXTRA_TEXT, "Nonton ${j.judul} Episode ${ep.number} di Anime.id")
                                         }
+                                        // onUserLeaveHint ikut terpanggil saat aplikasi membuka activity lain:
+                                        // matikan penanda PiP dulu supaya video tidak mengecil di belakang chooser.
+                                        // (dinyalakan lagi di ON_RESUME)
+                                        KeadaanPip.halamanPutarAktif = false
                                         ctx.startActivity(Intent.createChooser(kirim, "Bagikan"))
                                     }, Modifier.weight(1f))
                                 }
@@ -5709,16 +5717,22 @@ fun LayarPutar(
                     }
                 }
             }
+            // Kunci portrait hanya sementara; lepas lagi supaya rotasi otomatis tetap hidup
+            // (termasuk saat lanskap berasal dari rotasi perangkat, bukan tombol layar penuh).
+            val keluarLanskap: () -> Unit = {
+                layarPenuh = false
+                aktivitas?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                lingkup.launch {
+                    delay(1500)
+                    aktivitas?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                }
+            }
             val aksiKembali: () -> Unit = {
-                if (lanskap) {
-                    layarPenuh = false
-                    aktivitas?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                } else onKembali()
+                if (lanskap) keluarLanskap() else onKembali()
             }
             val aksiPenuh: () -> Unit = {
                 if (lanskap) {
-                    layarPenuh = false
-                    aktivitas?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    keluarLanskap()
                 } else {
                     layarPenuh = true
                     aktivitas?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
@@ -6106,6 +6120,7 @@ fun PemutarExo(
                 berakhir = state == Player.STATE_ENDED
                 if (state == Player.STATE_READY || state == Player.STATE_ENDED) memuatAwal = false
                 if (state == Player.STATE_READY) percobaan[0] = 0
+                if (state != Player.STATE_ENDED) sudahTamat = false
                 if (state == Player.STATE_ENDED && !sudahTamat) {
                     sudahTamat = true
                     aksiSelesai()
