@@ -30,7 +30,7 @@ internal fun JsonObject.jObjek(k: String): JsonObject? = this[k] as? JsonObject
 internal fun JsonObject.jTeks(
     k: String,
     bawaan: String = "",
-): String = primitif(k)?.content ?: bawaan
+): String = primitif(k)?.takeIf { it.isString }?.content ?: bawaan
 
 internal fun JsonObject.jInt(
     k: String,
@@ -50,5 +50,6 @@ internal fun JsonObject.jBenar(
 // Daftar teks tak kosong dari larik (elemen non-teks / null dilewati)
 internal fun JsonArray.daftarTeks(): List<String> =
     mapNotNull {
-        (it as? JsonPrimitive)?.takeIf { p -> p !is JsonNull }?.content?.ifBlank { null }
+        (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content?.ifBlank { null }
     }
+
