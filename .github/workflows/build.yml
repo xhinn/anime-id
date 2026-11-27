@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  # Build malam tiap hari 03:00 WIB (20:00 UTC) walau tanpa push —
+  # menangkap kerusakan dari faktor luar (dependensi transitif, image runner).
+  schedule:
+    - cron: '0 20 * * *'
 
 # Satu build aktif per cabang: push baru membatalkan build lama yang
 # sudah kedaluwarsa (sebelumnya run #16 dan #17 jalan bersamaan sia-sia).
