@@ -133,6 +133,7 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
@@ -861,6 +862,7 @@ object Pengunduh {
         return daftar(ctx).firstOrNull { it.kunci == k }?.let { java.io.File(it.berkas) }
     }
 
+    @Synchronized
     fun hapus(
         ctx: Context,
         u: Unduhan,
@@ -1323,7 +1325,7 @@ private fun kirimKabar(
             android.app.Notification
                 .Builder(app, CHANNEL_KABAR)
                 .setSmallIcon(R.drawable.ic_stat_kabar)
-                .setColor(0xFF2FBF8F.toInt()) // Zamrud aplikasi
+                .setColor(Zamrud.toArgb()) // Zamrud aplikasi
                 .setContentTitle(judulNotif)
                 .setContentText(isi)
                 .setStyle(
@@ -1652,6 +1654,7 @@ private object SinkronAkun {
                     .initializeApp(app, opsi)
             }
         } catch (e: Exception) {
+            android.util.Log.w("SinkronAkun", "Firebase gagal diinisialisasi", e)
         }
     }
 
@@ -1987,7 +1990,7 @@ fun Ikon(
                 drawLine(warna, Offset(X(15.8f), Y(2.9f)), Offset(X(15.8f), Y(6.6f)), strokeWidth = s.width, cap = tutup)
                 for (tx in listOf(8.4f, 12f, 15.6f)) drawCircle(warnaPotong, radius = X(1f), center = Offset(X(tx), Y(14.8f)), style = Fill)
             }
-            "koleksi" -> {
+            "markah" -> {
                 fun X(v: Float) = w * v / 24f
 
                 fun Y(v: Float) = h * v / 24f
@@ -2472,7 +2475,7 @@ fun ChipSkor(
     Row(
         modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xCC0A140F))
+            .background(Latar.copy(alpha = 0xCC / 255f))
             .padding(horizontal = 6.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -2540,7 +2543,7 @@ fun KartuPoster(
                             .align(Alignment.BottomStart)
                             .padding(6.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xCC0A140F))
+                            .background(Latar.copy(alpha = 0xCC / 255f))
                             .padding(horizontal = 6.dp, vertical = 3.dp),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
@@ -2553,7 +2556,7 @@ fun KartuPoster(
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
                         .height(56.dp)
-                        .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xE60A140F)))),
+                        .background(Brush.verticalGradient(listOf(Color.Transparent, Latar.copy(alpha = 0xE6 / 255f)))),
                 )
                 Text(
                     "$peringkat",
@@ -2651,7 +2654,7 @@ fun BilahBawah(
         listOf(
             "beranda" to "Beranda",
             "jadwal" to "Jadwal",
-            "koleksi" to "Favorit",
+            "markah" to "Favorit",
             "unduhan" to "Unduhan",
             "akun" to "Akun",
         )
@@ -2721,6 +2724,39 @@ fun BilahBawah(
                     )
                 }
             }
+        }
+    }
+}
+
+// Keadaan kosong seragam di seluruh aplikasi: judul singkat tanpa titik + satu baris bantu
+// (opsional, diakhiri titik). Dipakai Riwayat, Notifikasi, Jadwal, Favorit per segmen,
+// Pencarian, dan Komentar.
+@Composable
+fun KeadaanKosong(
+    judul: String,
+    bantu: String? = null,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier.fillMaxWidth().padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            judul,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Teks,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+        if (bantu != null) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                bantu,
+                fontSize = 12.5.sp,
+                color = Samar,
+                lineHeight = 18.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
         }
     }
 }
@@ -3162,11 +3198,10 @@ fun LayarBeranda(
                     if (pen == "Riwayat Tontonan") {
                         if (riwayatJudul.isEmpty()) {
                             item {
-                                Text(
-                                    "Belum ada riwayat tontonan. Judul yang kamu tonton akan tercatat di sini.",
-                                    fontSize = 13.5.sp,
-                                    color = Samar,
-                                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+                                KeadaanKosong(
+                                    "Belum ada riwayat",
+                                    "Judul yang kamu tonton akan tercatat di sini.",
+                                    Modifier.padding(vertical = 24.dp),
                                 )
                             }
                         } else {
@@ -3497,11 +3532,10 @@ fun LayarBeranda(
                         }
                     } else if (hasilCari.isEmpty()) {
                         item {
-                            Text(
-                                "Tidak ada hasil untuk \u201C$kueri\u201D.",
-                                fontSize = 13.5.sp,
-                                color = Samar,
-                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+                            KeadaanKosong(
+                                "Tidak ada hasil",
+                                "Tidak ada judul yang cocok dengan \u201C$kueri\u201D.",
+                                Modifier.padding(vertical = 24.dp),
                             )
                         }
                     } else {
@@ -3554,7 +3588,7 @@ fun LayarBeranda(
                                     if (u.tahun > 0) "${u.tahun}" else null,
                                     if (u.film) "Film" else "${u.jumlahEpisode} episode",
                                 ).joinToString(" \u2022 ")
-                            val kaca = Color(0x660A140F)
+                            val kaca = Latar.copy(alpha = 0x66 / 255f)
                             val garisKaca = Color(0x29FFFFFF)
                             val disimpan = favorit.contains(u.id)
                             Box(
@@ -3588,10 +3622,10 @@ fun LayarBeranda(
                                 Box(
                                     Modifier.fillMaxSize().background(
                                         Brush.verticalGradient(
-                                            0.0f to Color(0x4D0A140F),
+                                            0.0f to Latar.copy(alpha = 0x4D / 255f),
                                             0.25f to Color.Transparent,
-                                            0.5f to Color(0x8C0A140F),
-                                            1.0f to Color(0xF20A140F),
+                                            0.5f to Latar.copy(alpha = 0x8C / 255f),
+                                            1.0f to Latar.copy(alpha = 0xF2 / 255f),
                                         ),
                                     ),
                                 )
@@ -3678,7 +3712,7 @@ fun LayarBeranda(
                                                 },
                                             contentAlignment = Alignment.Center,
                                         ) {
-                                            Ikon("koleksi", Modifier.size(22.dp), if (disimpan) Zamrud else Teks, terisi = disimpan)
+                                            Ikon("markah", Modifier.size(22.dp), if (disimpan) Zamrud else Teks, terisi = disimpan)
                                         }
                                     }
                                 }
@@ -3736,13 +3770,13 @@ fun LayarBeranda(
                         ) {
                             Box(Modifier.width(128.dp).height(76.dp).clip(RoundedCornerShape(12.dp))) {
                                 Gambar(j.banner, Modifier.fillMaxSize(), fokusX = j.fokus)
-                                Box(Modifier.fillMaxSize().background(Color(0x400A140F)))
+                                Box(Modifier.fillMaxSize().background(Latar.copy(alpha = 0x40 / 255f)))
                                 Box(
                                     Modifier
                                         .align(Alignment.Center)
                                         .size(34.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xB30A140F)),
+                                        .background(Latar.copy(alpha = 0xB3 / 255f)),
                                     contentAlignment = Alignment.Center,
                                 ) { Ikon("putar", Modifier.size(16.dp), Teks, terisi = true) }
                             }
@@ -4019,11 +4053,10 @@ fun LayarBeranda(
                         }
                     }
                     if (kabar.isEmpty()) {
-                        Text(
-                            "Belum ada notifikasi. Kabar judul dan episode baru akan muncul di sini.",
-                            fontSize = 13.5.sp,
-                            color = Samar,
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+                        KeadaanKosong(
+                            "Belum ada notifikasi",
+                            "Kabar judul dan episode baru akan muncul di sini.",
+                            Modifier.padding(vertical = 40.dp),
                         )
                     } else {
                         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 118.dp)) {
@@ -4477,10 +4510,9 @@ fun LayarJadwal(
             val tampil = tiapHari[hari].filter { !hanyaKatalog || cocok[it] != null }
             if (tampil.isEmpty()) {
                 Box(Modifier.fillMaxWidth().padding(top = 48.dp), contentAlignment = Alignment.TopCenter) {
-                    Text(
-                        if (hanyaKatalog) "Belum ada rilis dari katalog di hari ini." else "Tidak ada rilis di hari ini.",
-                        fontSize = 14.sp,
-                        color = Samar,
+                    KeadaanKosong(
+                        "Belum ada rilis",
+                        if (hanyaKatalog) "Tidak ada rilis hari ini yang ada di katalog." else "Tidak ada jadwal tayang hari ini.",
                     )
                 }
             } else {
@@ -4577,7 +4609,7 @@ private fun KartuFavorit(
                 .clickable { onHapus() },
             contentAlignment = Alignment.Center,
         ) {
-            Ikon("koleksi", Modifier.size(22.dp), Zamrud, terisi = true)
+            Ikon("markah", Modifier.size(22.dp), Zamrud, terisi = true)
         }
     }
 }
@@ -4629,15 +4661,15 @@ fun LayarFavorit(
                     Box(
                         Modifier.size(84.dp).clip(CircleShape).background(HatiFavorit.copy(alpha = 0.12f)),
                         contentAlignment = Alignment.Center,
-                    ) { Ikon("koleksi", Modifier.size(38.dp), HatiFavorit) }
+                    ) { Ikon("markah", Modifier.size(38.dp), HatiFavorit) }
                     Spacer(Modifier.height(20.dp))
-                    Text("Belum ada favorit", color = Teks, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("Belum ada favorit", color = Teks, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Ketuk tombol Favorit di halaman detail anime untuk menyimpannya di sini.",
-                        color = Redup,
-                        fontSize = 13.5.sp,
-                        lineHeight = 19.sp,
+                        "Ketuk Favorit di halaman detail untuk menyimpannya di sini.",
+                        color = Samar,
+                        fontSize = 12.5.sp,
+                        lineHeight = 18.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     )
                     Spacer(Modifier.height(22.dp))
@@ -4724,10 +4756,9 @@ fun LayarFavorit(
             Spacer(Modifier.height(4.dp))
             if (hasil.isEmpty()) {
                 Box(Modifier.fillMaxSize().padding(bottom = 118.dp), contentAlignment = Alignment.Center) {
-                    Text(
-                        if (segmen == 1) "Belum ada serial di favoritmu." else "Belum ada film di favoritmu.",
-                        color = Redup,
-                        fontSize = 13.5.sp,
+                    KeadaanKosong(
+                        if (segmen == 1) "Belum ada serial" else "Belum ada film",
+                        "Ketuk Favorit di halaman detail untuk menyimpannya di sini.",
                     )
                 }
             } else {
@@ -4768,6 +4799,7 @@ fun LayarFavorit(
 fun LayarUnduhan(onPutar: (Judul, Int) -> Unit = { _, _ -> }) {
     val ctx = LocalContext.current
     var segarUn by remember { mutableStateOf(0) }
+    var hapusU by remember { mutableStateOf<Unduhan?>(null) }
     val daftarUn = remember(segarUn) { Pengunduh.daftar(ctx) }
     val info =
         remember(segarUn) {
@@ -4805,13 +4837,20 @@ fun LayarUnduhan(onPutar: (Judul, Int) -> Unit = { _, _ -> }) {
             .verticalScroll(rememberScrollState())
             .padding(bottom = 100.dp),
     ) {
-        Text(
-            "Unduhan",
-            fontSize = 27.sp,
-            fontWeight = FontWeight.Bold,
-            color = Teks,
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
-        )
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            Text("Unduhan", fontSize = 27.sp, fontWeight = FontWeight.Bold, color = Teks, modifier = Modifier.weight(1f))
+            if (daftarUn.isNotEmpty()) {
+                Text(
+                    "${daftarUn.size} episode",
+                    fontSize = 13.sp,
+                    color = Samar,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+            }
+        }
         Column(
             Modifier
                 .fillMaxWidth()
@@ -4848,8 +4887,9 @@ fun LayarUnduhan(onPutar: (Judul, Int) -> Unit = { _, _ -> }) {
                 )
             }
         }
-        Spacer(Modifier.height(34.dp))
+        Spacer(Modifier.height(22.dp))
         if (daftarUn.isNotEmpty()) {
+            Text("Sudah diunduh", fontSize = 13.sp, color = Redup, modifier = Modifier.padding(start = 20.dp, end = 18.dp, bottom = 6.dp))
             daftarUn.forEach { u ->
                 val jj =
                     (KatalogSumber.daftar + KatalogSumber.terbaru)
@@ -4873,13 +4913,13 @@ fun LayarUnduhan(onPutar: (Judul, Int) -> Unit = { _, _ -> }) {
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 18.dp, vertical = 5.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(18.dp))
                         .background(Kartu)
                         .clickable { onPutar(jj, u.indeksEp) }
                         .padding(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(Modifier.width(56.dp).height(80.dp).clip(RoundedCornerShape(10.dp))) {
+                    Box(Modifier.width(52.dp).height(72.dp).clip(RoundedCornerShape(10.dp))) {
                         Gambar(u.poster, Modifier.fillMaxSize())
                     }
                     Spacer(Modifier.width(12.dp))
@@ -4897,14 +4937,12 @@ fun LayarUnduhan(onPutar: (Judul, Int) -> Unit = { _, _ -> }) {
                     }
                     Box(
                         Modifier
-                            .height(36.dp)
-                            .clip(RoundedCornerShape(18.dp))
-                            .clickable {
-                                Pengunduh.hapus(ctx, u)
-                                segarUn++
-                            }.padding(horizontal = 10.dp),
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .border(1.dp, Garis, CircleShape)
+                            .clickable { hapusU = u },
                         contentAlignment = Alignment.Center,
-                    ) { Text("Hapus", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = MerahLembut) }
+                    ) { Ikon("sampah", Modifier.size(18.dp), MerahLembut) }
                 }
             }
         } else {
@@ -4922,7 +4960,7 @@ fun LayarUnduhan(onPutar: (Judul, Int) -> Unit = { _, _ -> }) {
                     Text("Belum ada unduhan", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Teks)
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        "Episode yang kamu unduh akan muncul di sini\n dan bisa ditonton tanpa internet.",
+                        "Episode yang kamu unduh akan muncul di sini dan bisa ditonton tanpa internet.",
                         fontSize = 12.5.sp,
                         color = Samar,
                         lineHeight = 18.sp,
@@ -4932,6 +4970,86 @@ fun LayarUnduhan(onPutar: (Judul, Int) -> Unit = { _, _ -> }) {
             }
         }
         Spacer(Modifier.height(118.dp))
+        // Konfirmasi hapus: satu ketukan tidak lagi langsung menghapus berkas
+        hapusU?.let { u ->
+            androidx.compose.ui.window.Dialog(onDismissRequest = { hapusU = null }) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(Kartu)
+                        .border(1.dp, Garis, RoundedCornerShape(28.dp))
+                        .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(
+                        Modifier.size(54.dp).clip(CircleShape).background(MerahLembut.copy(alpha = 0.14f)),
+                        contentAlignment = Alignment.Center,
+                    ) { Ikon("sampah", Modifier.size(26.dp), MerahLembut) }
+                    Spacer(Modifier.height(14.dp))
+                    Text("Hapus Episode ${u.nomorEp}?", fontSize = 19.sp, fontWeight = FontWeight.Bold, color = Teks)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "Berkas akan dihapus dari perangkat. Kamu bisa mengunduhnya lagi nanti.",
+                        fontSize = 13.5.sp,
+                        lineHeight = 20.sp,
+                        color = Redup,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Kartu2)
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.width(36.dp).height(50.dp).clip(RoundedCornerShape(8.dp))) {
+                            Gambar(u.poster, Modifier.fillMaxSize())
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                rapikanJudul(u.judul),
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Teks,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Spacer(Modifier.height(3.dp))
+                            Text("Episode ${u.nomorEp} • ${fmtUkuran(u.ukuran)}", fontSize = 12.sp, color = Samar)
+                        }
+                    }
+                    Spacer(Modifier.height(18.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .clip(CircleShape)
+                                .background(Kartu2)
+                                .border(1.dp, Garis, CircleShape)
+                                .clickable { hapusU = null }
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center,
+                        ) { Text("Batal", fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold, color = Teks) }
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .clip(CircleShape)
+                                .background(MerahLembut)
+                                .clickable {
+                                    Pengunduh.hapus(ctx, u)
+                                    hapusU = null
+                                    segarUn++
+                                }.padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center,
+                        ) { Text("Hapus", fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF2A0F0F)) }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -5416,7 +5534,7 @@ private fun HalamanTentang(onKembali: () -> Unit) {
             ) {
                 BarisMenu("bintang", "Sumber data") { dialogSumber = true }
                 GarisMenu()
-                BarisMenu("koleksi", "Pustaka yang dipakai") { dialogPustaka = true }
+                BarisMenu("markah", "Pustaka yang dipakai") { dialogPustaka = true }
             }
             Spacer(Modifier.height(20.dp))
             Text(
@@ -5722,7 +5840,11 @@ fun LayarDetail(
     // dengan versi lengkap yang alamat banner/fokusnya bisa beda dari entri indeks; kalau
     // dipakai langsung, Gambar() mereset fade-nya (gambar hilang lalu muncul lagi) dan
     // gambar terang itu terlihat berkedip. Hanya diperbarui bila tadinya kosong.
-    val bannerTampil = remember(j.id, j.banner.isBlank()) { j.banner }
+    val bannerAsli = remember(j.id, j.banner.isBlank()) { j.banner }
+    // Judul yang memang tak punya banner (setelah berkas judul selesai dimuat) memakai poster,
+    // bukan placeholder berkilau selamanya. Selama masih memuat tetap kosong supaya tidak
+    // berkedip dari poster ke banner.
+    val bannerTampil = if (bannerAsli.isBlank() && !memuatEpisode) j.poster else bannerAsli
     val fokusTampil = remember(j.id, j.banner.isBlank()) { j.fokus }
     // Pemanasan awal: begitu halaman detail terbuka (Wi-Fi saja), playlist dan segmen pertama
     // episode yang akan diputar sudah masuk cache, jadi video mulai hampir instan saat diputar.
@@ -5796,7 +5918,11 @@ fun LayarDetail(
                     Box(
                         Modifier.fillMaxSize().background(
                             Brush.verticalGradient(
-                                listOf(Color(0x590A140F), Color.Transparent, aksenAnim.copy(alpha = 0.283f).compositeOver(Latar)),
+                                listOf(
+                                    Latar.copy(alpha = 0x59 / 255f),
+                                    Color.Transparent,
+                                    aksenAnim.copy(alpha = 0.283f).compositeOver(Latar),
+                                ),
                                 startY = 0f,
                             ),
                         ),
@@ -5806,13 +5932,13 @@ fun LayarDetail(
                             Modifier
                                 .size(40.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xB30A140F))
+                                .background(Latar.copy(alpha = 0xB3 / 255f))
                                 .clickable { onKembali() },
                             contentAlignment = Alignment.Center,
                         ) { Ikon("kembali", Modifier.size(20.dp), Teks) }
                         Spacer(Modifier.weight(1f))
                         Box(
-                            Modifier.size(40.dp).clip(CircleShape).background(Color(0xB30A140F)).clickable {
+                            Modifier.size(40.dp).clip(CircleShape).background(Latar.copy(alpha = 0xB3 / 255f)).clickable {
                                 val kirim =
                                     Intent(Intent.ACTION_SEND).apply {
                                         type = "text/plain"
@@ -5930,7 +6056,7 @@ fun LayarDetail(
                             }
                         }
                         Spacer(Modifier.width(12.dp))
-                        TombolIkonBulat("koleksi", aktif = favorit) { onToggleFav() }
+                        TombolIkonBulat("markah", aktif = favorit) { onToggleFav() }
                         Spacer(Modifier.width(10.dp))
                         TombolIkonBulat("unduhan") {
                             pesan =
@@ -6031,9 +6157,24 @@ fun LayarDetail(
                         .padding(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    // lebar tetap: angka berbeda lebar (E1 vs E2, E10) tak menggeser thumbnail dan teks
                     Box(
-                        Modifier.clip(RoundedCornerShape(8.dp)).background(Kartu2).padding(horizontal = 8.dp, vertical = 5.dp),
-                    ) { Text("E${ep.number}", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Redup) }
+                        Modifier
+                            .width(40.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Kartu2)
+                            .padding(vertical = 5.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            "E${ep.number}",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Redup,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
                     Spacer(Modifier.width(10.dp))
                     Box(Modifier.width(86.dp).height(52.dp).clip(RoundedCornerShape(9.dp))) {
                         Gambar(bannerTampil, Modifier.fillMaxSize(), fokusX = fokusTampil)
@@ -6442,6 +6583,8 @@ fun LayarPutar(
     // tidak bisa (dan tidak boleh) dihapus dari sini.
     val uidKu = SinkronAkun.uidSaya()
     val daftarKomentar = rememberLazyListState()
+    // daftar episode langsung membuka di dekat episode yang sedang diputar
+    val daftarEpisode = rememberLazyListState(initialFirstVisibleItemIndex = maxOf(0, indeksEp - 2))
     // Komentar bersama: sesudah layar terbuka, ambil versi Firestore dan
     // gabungkan dengan salinan setempat (diam saja bila belum masuk Firebase —
     // daftar setempat tetap tampil apa adanya).
@@ -6660,7 +6803,7 @@ fun LayarPutar(
                             contentPadding = PaddingValues(bottom = 96.dp),
                         ) {
                             item {
-                                Column(Modifier.padding(horizontal = 16.dp)) {
+                                Column(Modifier.padding(horizontal = 18.dp)) {
                                     Spacer(Modifier.height(16.dp))
                                     Text(j.judul, fontSize = 19.sp, fontWeight = FontWeight.Bold, color = Teks, lineHeight = 25.sp)
                                     Spacer(Modifier.height(4.dp))
@@ -6677,7 +6820,7 @@ fun LayarPutar(
                                     }
                                     Spacer(Modifier.height(18.dp))
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                        TombolAksi("koleksi", "Favorit", favorit, { onToggleFav() }, Modifier.weight(1f))
+                                        TombolAksi("markah", "Favorit", favorit, { onToggleFav() }, Modifier.weight(1f))
                                         run {
                                             val persenUn = Pengunduh.aktif[Pengunduh.kunci(j.id, ep.number)]
                                             val sudahUn = Pengunduh.versi.let { Pengunduh.berkas(ctx, j.id, ep.number) != null }
@@ -6779,7 +6922,19 @@ fun LayarPutar(
                                             ) { Box(Modifier.size(18.dp).clip(CircleShape).background(Teks)) }
                                         }
                                         Spacer(Modifier.height(12.dp))
-                                        androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        androidx.compose.foundation.lazy.LazyRow(
+                                            state = daftarEpisode,
+                                            contentPadding = PaddingValues(horizontal = 18.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            // lepas dari padding 16dp induk: baris menggulir sampai tepi layar,
+                                            // chip tidak terpotong di pinggir
+                                            modifier =
+                                                Modifier.layout { ukur, batas ->
+                                                    val tambah = 36.dp.roundToPx()
+                                                    val pl = ukur.measure(batas.copy(maxWidth = batas.maxWidth + tambah))
+                                                    layout(batas.maxWidth, pl.height) { pl.place(-tambah / 2, 0) }
+                                                },
+                                        ) {
                                             itemsIndexed(j.episodes, key = { i, _ -> i }) { idx, e ->
                                                 val aktif = idx == indeksEp
                                                 Box(
@@ -6812,17 +6967,11 @@ fun LayarPutar(
                             }
                             if (tampilKomentar.isEmpty()) {
                                 item {
-                                    Text(
-                                        "Belum ada komentar. Jadilah yang pertama berkomentar.",
-                                        fontSize = 13.sp,
-                                        color = Samar,
-                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                    )
+                                    KeadaanKosong("Belum ada komentar", modifier = Modifier.padding(vertical = 24.dp))
                                 }
                             }
                             items(tampilKomentar, key = { it.id }) { k ->
-                                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
+                                Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp)) {
                                     if (k.foto.isNotBlank()) {
                                         Gambar(k.foto, Modifier.size(36.dp).clip(CircleShape))
                                     } else {
@@ -7752,8 +7901,8 @@ fun PemutarExo(
                 Modifier
                     .align(Alignment.TopStart)
                     .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.35f))
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                    .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.7f), Color.Transparent)))
+                    .padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 24.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
@@ -7780,8 +7929,8 @@ fun PemutarExo(
                 Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.35f))
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))))
+                    .padding(start = 12.dp, end = 12.dp, top = 20.dp, bottom = 8.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(fmtWaktuExo(posisi), color = Color.White, fontSize = 12.sp)
@@ -7848,23 +7997,27 @@ fun PemutarExo(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         Modifier
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(Color.Black.copy(alpha = 0.35f))
+                            .height(34.dp)
+                            .clip(RoundedCornerShape(17.dp))
+                            .background(Color.Black.copy(alpha = 0.5f))
                             .clickable {
                                 menuKecepatan = !menuKecepatan
                                 menuKualitas = false
-                            }.padding(horizontal = 12.dp, vertical = 6.dp),
+                            }.padding(horizontal = 14.dp),
+                        contentAlignment = Alignment.Center,
                     ) { Text(labelKecepatan(kecepatan), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
                     if (daftarKualitas.size > 1) {
                         Spacer(Modifier.width(8.dp))
                         Box(
                             Modifier
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(Color.Black.copy(alpha = 0.35f))
+                                .height(34.dp)
+                                .clip(RoundedCornerShape(17.dp))
+                                .background(Color.Black.copy(alpha = 0.5f))
                                 .clickable {
                                     menuKualitas = !menuKualitas
                                     menuKecepatan = false
-                                }.padding(horizontal = 12.dp, vertical = 6.dp),
+                                }.padding(horizontal = 14.dp),
+                            contentAlignment = Alignment.Center,
                         ) {
                             Text(
                                 when {
@@ -7881,9 +8034,9 @@ fun PemutarExo(
                     Spacer(Modifier.weight(1f))
                     Box(
                         Modifier
-                            .size(36.dp)
+                            .size(34.dp)
                             .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.35f))
+                            .background(Color.Black.copy(alpha = 0.5f))
                             .clickable { onTogglePenuh() },
                         contentAlignment = Alignment.Center,
                     ) { Ikon("layarpenuh", Modifier.size(19.dp), Color.White) }
@@ -8393,7 +8546,7 @@ class MainActivity : ComponentActivity() {
         splash.setOnExitAnimationListener { it.remove() }
         super.onCreate(savedInstanceState)
         // latar jendela disamakan dengan latar aplikasi sejak awal — membunuh kedip putih saat mulai
-        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0xFF0A140F.toInt()))
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Latar.toArgb()))
         // ikon status bar & nav bar terang di atas latar gelap
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
