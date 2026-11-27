@@ -198,6 +198,7 @@ import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 // ================= Palet Zamrud =================
@@ -289,6 +290,9 @@ private fun Nav.jenis() =
 // aplikasi (tombol Beranda) supaya video mengecil jadi jendela melayang.
 object KeadaanPip {
     var halamanPutarAktif = false
+
+    // true selama aplikasi berada di jendela kecil (PiP) sistem; dibaca Compose
+    var sedangPip by mutableStateOf(false)
 }
 
 // Putar otomatis ke episode berikutnya membuat ulang halaman putar; penanda ini
@@ -302,6 +306,33 @@ object KeadaanBuka {
 
 object KeadaanPutar {
     var penuhLanjut = false
+}
+
+// Mini pemutar (PiP dalam aplikasi): saat pengguna menekan kembali dari halaman putar,
+// video tidak mati tetapi mengecil jadi kartu melayang di atas halaman mana pun.
+object KeadaanMini {
+    var judul: Judul? by mutableStateOf(null)
+    var indeks by mutableStateOf(0)
+    var jalur by mutableStateOf("")
+    var posisi by mutableStateOf(0)
+    var versi by mutableStateOf(0) // naik tiap sesi baru supaya pemutar mini dibuat ulang
+
+    fun siapkan(
+        j: Judul,
+        idx: Int,
+        alamat: String,
+        pos: Int,
+    ) {
+        indeks = idx
+        jalur = alamat
+        posisi = pos
+        judul = j
+        versi += 1
+    }
+
+    fun tutup() {
+        judul = null
+    }
 }
 
 // Pengait pramuat: KartuPoster memanggilnya begitu poster mulai ditekan (sebelum jari
@@ -6941,12 +6972,27 @@ fun LayarPutar(
             if (!KeadaanPutar.penuhLanjut) aktivitas?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
+    // Kembali dari halaman putar: video mengecil jadi mini pemutar dan lanjut dari posisi terakhir.
+    val kembaliKeMini: () -> Unit = {
+        val alamat =
+            when {
+                berkasLokal != null -> "lokal:" + berkasLokal.absolutePath
+                ep?.playlist?.startsWith("http") == true -> ep.playlist
+                else -> null
+            }
+        if (alamat != null && pegangan.durasi > 0 && pegangan.posisi < pegangan.durasi - 5000) {
+            KeadaanMini.siapkan(j, indeksEp, alamat, pegangan.posisi)
+        } else {
+            KeadaanMini.tutup()
+        }
+        onKembali()
+    }
     BackHandler {
         if (layarPenuh) {
             layarPenuh = false
             aktivitas?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         } else {
-            onKembali()
+            kembaliKeMini()
         }
     }
 
@@ -7319,7 +7365,7 @@ fun LayarPutar(
                 }
             }
             val aksiKembali: () -> Unit = {
-                if (lanskap) keluarLanskap() else onKembali()
+                if (lanskap) keluarLanskap() else kembaliKeMini()
             }
             val aksiPenuh: () -> Unit = {
                 if (lanskap) {
@@ -8351,6 +8397,474 @@ fun PemutarExo(
     }
 }
 
+// ================= Mini pemutar (PiP dalam aplikasi) =================
+@Composable
+@UnstableApi
+private fun MiniPemutar(
+    onBuka: (Judul, Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val j = KeadaanMini.judul ?: return
+    androidx.compose.runtime.key(KeadaanMini.versi) {
+        MiniIsi(j, KeadaanMini.indeks, KeadaanMini.jalur, KeadaanMini.posisi, onBuka, modifier)
+    }
+}
+
+@Composable
+@UnstableApi
+private fun MiniIsi(
+    j: Judul,
+    idx: Int,
+    jalur: String,
+    posAwal: Int,
+    onBuka: (Judul, Int) -> Unit,
+    modifier: Modifier,
+) {
+    val ctx = LocalContext.current
+    val lingkup = rememberCoroutineScope()
+    val kepadatan = LocalDensity.current
+    var main by remember { mutableStateOf(true) }
+    var buffering by remember { mutableStateOf(true) }
+    var posisi by remember { mutableStateOf(posAwal) }
+    var durasi by remember { mutableStateOf(0) }
+    val paksaHls = remember { booleanArrayOf(false) }
+
+    val exo =
+        remember {
+            val lewatCache =
+                androidx.media3.datasource.cache.CacheDataSource
+                    .Factory()
+                    .setCache(CachePemutar.ambil(ctx))
+                    .setUpstreamDataSourceFactory(CachePemutar.pabrikHttp())
+                    .setFlags(androidx.media3.datasource.cache.CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+            val sumberData =
+                androidx.media3.datasource.DefaultDataSource
+                    .Factory(ctx, lewatCache)
+            ExoPlayer
+                .Builder(ctx)
+                .setMediaSourceFactory(
+                    androidx.media3.exoplayer.source
+                        .DefaultMediaSourceFactory(sumberData),
+                ).setAudioAttributes(
+                    androidx.media3.common.AudioAttributes
+                        .Builder()
+                        .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+                        .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MOVIE)
+                        .build(),
+                    true,
+                ).setHandleAudioBecomingNoisy(true)
+                .build()
+                .apply { setPlaybackSpeed(prefs(ctx).getFloat("kecepatan", 1f)) }
+        }
+
+    fun muat(
+        paksa: Boolean,
+        mulaiDari: Long,
+    ) {
+        val uri = if (jalur.startsWith("lokal:")) "file://" + jalur.removePrefix("lokal:") else jalur
+        val butir =
+            MediaItem
+                .Builder()
+                .setUri(uri)
+                .apply {
+                    if (paksa || uri.contains(".m3u8", ignoreCase = true)) {
+                        setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8)
+                    }
+                }.build()
+        exo.setMediaItem(butir)
+        exo.prepare()
+        if (mulaiDari > 0) exo.seekTo(mulaiDari)
+    }
+
+    fun simpan() {
+        try {
+            val d = exo.duration
+            if (d > 0) {
+                val pos = exo.currentPosition.toInt().coerceAtLeast(0)
+                simpanProgres(ctx, Progres(j.id, idx, pos, d.toInt()))
+                simpanPosisiEp(ctx, j.id, idx, pos, d.toInt())
+            }
+        } catch (e: Exception) {
+            // abaikan
+        }
+    }
+
+    LaunchedEffect(exo) {
+        muat(false, posAwal.toLong())
+        exo.playWhenReady = true
+    }
+
+    DisposableEffect(exo) {
+        val pendengar =
+            object : Player.Listener {
+                override fun onPlaybackStateChanged(state: Int) {
+                    buffering = state == Player.STATE_BUFFERING
+                    if (state == Player.STATE_ENDED) KeadaanMini.tutup()
+                }
+
+                override fun onPlayWhenReadyChanged(
+                    playWhenReady: Boolean,
+                    reason: Int,
+                ) {
+                    main = playWhenReady
+                }
+
+                override fun onPlayerError(error: PlaybackException) {
+                    if (!paksaHls[0] && error.cause is androidx.media3.exoplayer.source.UnrecognizedInputFormatException) {
+                        paksaHls[0] = true
+                        muat(true, exo.currentPosition)
+                    } else {
+                        KeadaanMini.tutup()
+                    }
+                }
+            }
+        exo.addListener(pendengar)
+        // jeda otomatis saat aplikasi tidak tampil (sama seperti pemutar utama)
+        val pemilik = (ctx as? android.app.Activity) as? androidx.lifecycle.LifecycleOwner
+        val pengamat =
+            androidx.lifecycle.LifecycleEventObserver { _, kejadian ->
+                if (kejadian == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
+                    simpan()
+                    exo.pause()
+                }
+            }
+        pemilik?.lifecycle?.addObserver(pengamat)
+        onDispose {
+            pemilik?.lifecycle?.removeObserver(pengamat)
+            exo.removeListener(pendengar)
+            simpan()
+            exo.release()
+        }
+    }
+
+    LaunchedEffect(exo) {
+        var tik = 0
+        while (true) {
+            val d = exo.duration
+            durasi = if (d > 0) d.toInt() else 0
+            posisi = exo.currentPosition.toInt().coerceAtLeast(0)
+            tik += 1
+            if (tik % 20 == 0) simpan()
+            delay(500)
+        }
+    }
+
+    // Tombol Beranda saat mini tampil: jendela kecil (PiP) sistem hanya menampilkan videonya
+    // (tanpa kontrol), sama seperti PiP dari halaman putar penuh. Pemutar tetap yang sama,
+    // jadi video lanjut tanpa putus.
+    if (KeadaanPip.sedangPip) {
+        Box(modifier.fillMaxSize().background(Color.Black)) {
+            AndroidView(
+                factory = { c ->
+                    PlayerView(c).apply {
+                        player = exo
+                        useController = false
+                        resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    }
+                },
+                onRelease = { it.player = null },
+                modifier = Modifier.fillMaxSize(),
+            )
+            if (buffering) {
+                androidx.compose.material3.LoadingIndicator(
+                    color = Zamrud,
+                    modifier = Modifier.align(Alignment.Center).size(26.dp),
+                )
+            }
+        }
+        return
+    }
+    val insetBawah = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val insetAtas = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val lebarKartu = 176.dp
+        val tinggiKartu = 99.dp
+        val tepi = 14.dp
+        val jarakBawah = insetBawah + 96.dp // di atas kapsul navigasi
+        val px = { d: androidx.compose.ui.unit.Dp -> with(kepadatan) { d.toPx() } }
+        // batas geser: kiri-kanan dan atas-bawah, supaya kartu tidak keluar layar
+        val lebih = px(90.dp) // geser melewati tepi sejauh ini = tutup
+        val minX = -(px(maxWidth) - px(lebarKartu) - 2f * px(tepi))
+        val minY = -(px(maxHeight) - px(tinggiKartu) - px(jarakBawah) - px(insetAtas) - px(tepi))
+        val maksY = px(jarakBawah) - px(tepi)
+        val gx =
+            remember {
+                androidx.compose.animation.core
+                    .Animatable(0f)
+            }
+        val gy =
+            remember {
+                androidx.compose.animation.core
+                    .Animatable(0f)
+            }
+        val masuk =
+            remember {
+                androidx.compose.animation.core
+                    .Animatable(0f)
+            }
+        val hilang =
+            remember {
+                androidx.compose.animation.core
+                    .Animatable(0f)
+            }
+        LaunchedEffect(Unit) {
+            masuk.animateTo(
+                1f,
+                androidx.compose.animation.core
+                    .spring(dampingRatio = 0.7f, stiffness = 380f),
+            )
+        }
+        // Kontrol (putar/jeda, tutup, judul) tampil 2,5 dtk saat kartu muncul atau disentuh, lalu
+        // hilang supaya videonya bersih. Ketuk saat kontrol tersembunyi = tampilkan kontrol;
+        // ketuk saat kontrol tampil = buka pemutar penuh.
+        var kontrol by remember { mutableStateOf(true) }
+        var kunciKontrol by remember { mutableStateOf(0) }
+        LaunchedEffect(kunciKontrol, kontrol) {
+            if (kontrol) {
+                delay(2500)
+                kontrol = false
+            }
+        }
+        val alfaKontrol by androidx.compose.animation.core.animateFloatAsState(
+            targetValue = if (kontrol) 1f else 0f,
+            animationSpec =
+                androidx.compose.animation.core
+                    .tween(250),
+            label = "miniKontrol",
+        )
+        val bentuk = RoundedCornerShape(16.dp)
+        val nomor = j.episodes.getOrNull(idx)?.number ?: (idx + 1)
+        Box(
+            Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = tepi, bottom = jarakBawah)
+                .offset {
+                    androidx.compose.ui.unit
+                        .IntOffset(gx.value.roundToInt(), gy.value.roundToInt())
+                }.graphicsLayer {
+                    val skala = 0.8f + 0.2f * masuk.value
+                    scaleX = skala
+                    scaleY = skala
+                    // memudar saat diseret melewati tepi layar (tanda akan ditutup)
+                    val lewat =
+                        if (gx.value > 0f) {
+                            gx.value
+                        } else if (gx.value < minX) {
+                            minX - gx.value
+                        } else {
+                            0f
+                        }
+                    this.alpha = masuk.value.coerceIn(0f, 1f) *
+                        (1f - minOf(lewat, lebih) / (lebih * 1.45f)) * (1f - hilang.value)
+                    transformOrigin =
+                        androidx.compose.ui.graphics
+                            .TransformOrigin(1f, 1f)
+                }.size(lebarKartu, tinggiKartu)
+                .shadow(14.dp, bentuk)
+                .clip(bentuk)
+                .background(Color.Black)
+                .border(1.dp, Color.White.copy(alpha = 0.14f), bentuk)
+                .pointerInput(Unit) {
+                    androidx.compose.foundation.gestures.detectTapGestures {
+                        if (kontrol) {
+                            simpan()
+                            onBuka(j, idx)
+                        } else {
+                            kontrol = true
+                            kunciKontrol += 1
+                        }
+                    }
+                }.pointerInput(minX, minY, maksY) {
+                    androidx.compose.foundation.gestures.detectDragGestures(
+                        onDragStart = {
+                            kontrol = true
+                            kunciKontrol += 1
+                        },
+                        onDragEnd = {
+                            lingkup.launch {
+                                val tutupKanan = gx.value > px(55.dp)
+                                val tutupKiri = gx.value < minX - px(55.dp)
+                                if (tutupKanan || tutupKiri) {
+                                    // dilempar ke luar layar sambil memudar, lalu ditutup
+                                    launch {
+                                        gx.animateTo(
+                                            gx.value + (if (tutupKanan) px(160.dp) else -px(160.dp)),
+                                            androidx.compose.animation.core
+                                                .tween(300),
+                                        )
+                                    }
+                                    hilang.animateTo(
+                                        1f,
+                                        androidx.compose.animation.core
+                                            .tween(300),
+                                    )
+                                    KeadaanMini.tutup()
+                                } else {
+                                    // menempel ke tepi kiri / kanan terdekat
+                                    gx.animateTo(
+                                        if (gx.value < minX / 2f) minX else 0f,
+                                        androidx.compose.animation.core
+                                            .spring(dampingRatio = 0.8f, stiffness = 400f),
+                                    )
+                                }
+                            }
+                        },
+                    ) { change, geser ->
+                        change.consume()
+                        lingkup.launch {
+                            gx.snapTo((gx.value + geser.x).coerceIn(minX - lebih, lebih))
+                            gy.snapTo((gy.value + geser.y).coerceIn(minY, maksY))
+                        }
+                    }
+                },
+        ) {
+            AndroidView(
+                factory = { c ->
+                    PlayerView(c).apply {
+                        player = exo
+                        useController = false
+                        resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                    }
+                },
+                onRelease = { it.player = null },
+                modifier = Modifier.fillMaxSize(),
+            )
+            // scrim atas/bawah: hanya terlihat bersama kontrol
+            Box(
+                Modifier.fillMaxSize().graphicsLayer { this.alpha = alfaKontrol }.background(
+                    Brush.verticalGradient(
+                        0f to Color.Black.copy(alpha = 0.5f),
+                        0.42f to Color.Transparent,
+                        1f to Color.Black.copy(alpha = 0.7f),
+                    ),
+                ),
+            )
+            if (buffering) {
+                androidx.compose.material3.LoadingIndicator(
+                    color = Zamrud,
+                    modifier = Modifier.align(Alignment.Center).size(26.dp),
+                )
+            }
+            // tutup (X) — kaca: putih transparan + garis tepi tipis (sama dengan pil lompat)
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(7.dp)
+                    .size(26.dp)
+                    .graphicsLayer { this.alpha = alfaKontrol }
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.15f))
+                    .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape)
+                    .clickable(enabled = kontrol) { KeadaanMini.tutup() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Canvas(Modifier.size(10.dp)) {
+                    val tebal = size.width * 0.26f
+                    val ujung = androidx.compose.ui.graphics.StrokeCap.Round
+                    drawLine(Color.White, Offset(0f, 0f), Offset(size.width, size.height), strokeWidth = tebal, cap = ujung)
+                    drawLine(Color.White, Offset(size.width, 0f), Offset(0f, size.height), strokeWidth = tebal, cap = ujung)
+                }
+            }
+            // putar / jeda: ikon berganti dengan animasi (mengecil + berputar, yang lain muncul membal)
+            val pj by androidx.compose.animation.core.animateFloatAsState(
+                targetValue = if (main) 1f else 0f,
+                animationSpec =
+                    androidx.compose.animation.core
+                        .spring(dampingRatio = 0.55f, stiffness = 500f),
+                label = "miniPutarJeda",
+            )
+            Box(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 7.dp, bottom = 14.dp)
+                    .size(32.dp)
+                    .graphicsLayer { this.alpha = alfaKontrol }
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.15f))
+                    .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape)
+                    .clickable(enabled = kontrol) {
+                        kunciKontrol += 1
+                        if (exo.playWhenReady) exo.pause() else exo.play()
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                // ikon jeda (dua batang)
+                Canvas(
+                    Modifier.size(14.dp).graphicsLayer {
+                        val k = pj
+                        this.alpha = k.coerceIn(0f, 1f)
+                        scaleX = 0.3f + 0.7f * k
+                        scaleY = 0.3f + 0.7f * k
+                        rotationZ = (1f - k) * 90f
+                    },
+                ) {
+                    val lb = size.width * 3f / 14f
+                    drawRoundRect(
+                        Color.White,
+                        Offset(size.width * 2.5f / 14f, size.height * 1.5f / 14f),
+                        Size(lb, size.height * 11f / 14f),
+                        CornerRadius(lb / 3f),
+                    )
+                    drawRoundRect(
+                        Color.White,
+                        Offset(size.width * 8.5f / 14f, size.height * 1.5f / 14f),
+                        Size(lb, size.height * 11f / 14f),
+                        CornerRadius(lb / 3f),
+                    )
+                }
+                // ikon putar (segitiga)
+                Canvas(
+                    Modifier.size(14.dp).graphicsLayer {
+                        val k = 1f - pj
+                        this.alpha = k.coerceIn(0f, 1f)
+                        scaleX = 0.3f + 0.7f * k
+                        scaleY = 0.3f + 0.7f * k
+                        rotationZ = -(1f - k) * 90f
+                    },
+                ) {
+                    val tr = Path()
+                    tr.moveTo(size.width * 3.5f / 14f, size.height * 1.8f / 14f)
+                    tr.lineTo(size.width * 11.5f / 14f, size.height * 7f / 14f)
+                    tr.lineTo(size.width * 3.5f / 14f, size.height * 12.2f / 14f)
+                    tr.close()
+                    drawPath(tr, Color.White, style = Fill)
+                }
+            }
+            // judul: pil kaca gelap di samping tombol putar
+            Text(
+                "${j.judul} · Ep $nomor",
+                color = Color.White,
+                fontSize = 10.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 46.dp, end = 9.dp, bottom = 19.dp)
+                        .graphicsLayer { this.alpha = alfaKontrol }
+                        .clip(RoundedCornerShape(50))
+                        .background(Color.Black.copy(alpha = 0.32f))
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(50))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+            )
+            // progres membulat, berjarak dari tepi kartu (selalu tampil)
+            Box(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 10.dp, end = 10.dp, bottom = 7.dp)
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color.White.copy(alpha = 0.25f)),
+            ) {
+                val frac = if (durasi > 0) (posisi.toFloat() / durasi).coerceIn(0f, 1f) else 0f
+                Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(Zamrud))
+            }
+        }
+    }
+}
+
 // Umpan balik lompat ketuk dua kali, gaya 2026: sapuan cahaya lembut di sisi yang diketuk,
 // riak melebar dari titik ketuk, dan pil kaca berisi panah bergelombang + total detik
 // yang "memantul" tiap ketukan.
@@ -8717,6 +9231,9 @@ fun Aplikasi() {
         }
     }
 
+    // Membuka pemutar penuh (dari mana pun) menutup mini pemutar; videonya pindah ke halaman penuh.
+    LaunchedEffect(putar) { if (putar != null) KeadaanMini.tutup() }
+
     Box(Modifier.fillMaxSize().background(Latar)) {
         AnimatedContent(
             targetState = Nav(putar, detail),
@@ -8935,6 +9452,10 @@ fun Aplikasi() {
                 }
             }
         }
+        // Mini pemutar melayang di atas Beranda / Detail / tab mana pun
+        if (putar == null && KeadaanMini.judul != null) {
+            MiniPemutar(onBuka = { jd, i -> mulaiPutar(jd, i) })
+        }
     }
 }
 
@@ -8995,9 +9516,17 @@ class MainActivity : ComponentActivity() {
     // tampil -> video mengecil jadi jendela melayang 16:9 dan tetap jalan.
     // Di jendela kecil itu halaman putar terbaca lanskap, jadi pemutarnya
     // memenuhi jendela dengan sendirinya; instance pemutar tidak berganti.
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: android.content.res.Configuration,
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        KeadaanPip.sedangPip = isInPictureInPictureMode
+    }
+
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        if (KeadaanPip.halamanPutarAktif) {
+        if (KeadaanPip.halamanPutarAktif || KeadaanMini.judul != null) {
             try {
                 enterPictureInPictureMode(
                     android.app.PictureInPictureParams
