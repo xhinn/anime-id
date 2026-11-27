@@ -1,5 +1,8 @@
 # Dependabot: pembaruan dependensi otomatis.
 # PR pembaruan dibuka tiap minggu ke branch main.
+# Daftar abaikan di bawah menegakkan keputusan pemilik repo (2026-11-27):
+# jangan sentuh AGP, Compose, Firebase, dan haze tanpa perintah baru —
+# keempatnya butuh migrasi kode atau berisiko, bukan sekadar ganti angka.
 version: 2
 updates:
   - package-ecosystem: "gradle"
@@ -8,6 +11,12 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     target-branch: "main"
+    ignore:
+      - dependency-name: "com.android.application"
+      - dependency-name: "com.android.library"
+      - dependency-name: "androidx.compose.*"
+      - dependency-name: "com.google.firebase:*"
+      - dependency-name: "dev.chrisbanes.haze"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
