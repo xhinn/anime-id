@@ -224,6 +224,12 @@ private val BintangW = Color(0xFFFFC94D)
 private val MerahLembut = Color(0xFFE88A8A)
 
 // ================= Tema (Material 3 Expressive + Inter) =================
+// Khusus tulisan logo anime.id
+private val FontLogo =
+    FontFamily(
+        Font(R.font.manrope_extrabold, FontWeight.ExtraBold),
+    )
+
 private val Inter =
     FontFamily(
         Font(R.font.inter_regular, FontWeight.Normal),
@@ -3238,20 +3244,23 @@ fun LayarBeranda(
                                 ) {
                                     Text(
                                         "anime",
-                                        fontSize = 21.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        letterSpacing = (-0.5).sp,
+                                        modifier = Modifier.alignByBaseline(),
+                                        fontFamily = FontLogo,
+                                        fontSize = 27.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        letterSpacing = (-1).sp,
                                         color = Teks,
                                     )
                                     Text(
                                         ".id",
+                                        modifier = Modifier.alignByBaseline(),
                                         style =
                                             TextStyle(
                                                 brush = Brush.horizontalGradient(listOf(ZamrudTerang, Zamrud)),
-                                                fontFamily = Inter,
-                                                fontSize = 21.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                letterSpacing = (-0.5).sp,
+                                                fontFamily = FontLogo,
+                                                fontSize = 27.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                letterSpacing = (-1).sp,
                                             ),
                                     )
                                 }
@@ -9674,4 +9683,3 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 }
-
