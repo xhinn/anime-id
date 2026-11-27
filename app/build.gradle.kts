@@ -13,6 +13,8 @@ android {
     defaultConfig {
         minSdk = 26
         targetSdk = 36
+        versionCode = 1
+        versionName = "1.0.0"
     }
 
     buildTypes {
@@ -61,4 +63,5 @@ dependencies {
     implementation("androidx.media3:media3-datasource-okhttp:1.11.1")
     implementation("androidx.work:work-runtime-ktx:2.12.0")
 }
+
 
