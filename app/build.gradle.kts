@@ -34,7 +34,7 @@ android {
 
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -83,7 +83,9 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.media3.datasource.okhttp)
     implementation(libs.work.runtime.ktx)
+    testImplementation(libs.junit)
 }
+
 
 
 
