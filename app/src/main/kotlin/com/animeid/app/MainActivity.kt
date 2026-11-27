@@ -5776,7 +5776,7 @@ private fun fmtWaktuExo(ms: Int): String {
 
 // Cache segmen HLS (maks 200 MB, buang yang terlama): putar ulang & geser mundur
 // tidak mengunduh ulang, dan segmen yang sudah dimuat tetap lancar saat sinyal naik-turun.
-@OptIn(UnstableApi::class)
+@UnstableApi
 object CachePemutar {
     // Satu klien OkHttp dipakai bersama oleh pemutar dan pemanasan: HTTP/2 (banyak permintaan
     // dalam satu koneksi), koneksi dipakai ulang antar segmen (tanpa handshake TCP/TLS baru
@@ -5811,7 +5811,7 @@ object CachePemutar {
 // rendisi terendah (3 segmen), ditulis ke cache yang sama dengan pemutar. Hanya dijalankan
 // di jaringan tidak berbayar (Wi-Fi), saat episode berjalan >=70% dan penyangga
 // sudah cukup. Semua kegagalan diabaikan; tidak pernah mengganggu pemutaran.
-@OptIn(UnstableApi::class)
+@UnstableApi
 object PemanasanVideo {
     private val sudah = java.util.Collections.synchronizedSet(HashSet<String>())
 
@@ -5896,7 +5896,7 @@ object PemanasanVideo {
 }
 
 @Composable
-@OptIn(UnstableApi::class)
+@UnstableApi
 fun PemutarExo(
     jalurEp: String,
     jalurBerikut: String? = null,
