@@ -4618,6 +4618,7 @@ private fun gelapkanAksen(rgb: Int): Int {
 }
 
 @Composable
+@UnstableApi
 fun LayarDetail(
     j: Judul,
     favorit: Boolean,
