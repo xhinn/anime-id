@@ -8,7 +8,6 @@ import org.junit.Test
 // Test unit untuk pembaca JSON longgar (JsonAman.kt).
 // Fungsi-fungsi ini murni (tanpa Android), jadi bisa diuji tanpa emulator.
 class JsonAmanTest {
-
     @Test
     fun keJsonObjek_menguraiObjekSederhana() {
         val o = """{"judul":"One Piece","episode":5}""".keJsonObjek()
