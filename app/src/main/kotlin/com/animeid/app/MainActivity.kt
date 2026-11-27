@@ -4240,48 +4240,6 @@ object JadwalRilis {
     }
 }
 
-@Composable
-private fun ChipHari(
-    label: String,
-    tgl: Int,
-    aktif: Boolean,
-    ada: Boolean,
-    onKlik: () -> Unit,
-) {
-    val bentuk = RoundedCornerShape(22.dp)
-    Column(
-        Modifier
-            .clip(bentuk)
-            .background(if (aktif) Zamrud else Kartu)
-            .border(1.dp, if (aktif) Zamrud else Kartu2, bentuk)
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onKlik() }
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            label,
-            fontSize = 11.5.sp,
-            fontWeight = FontWeight.Medium,
-            letterSpacing = 1.sp,
-            color = if (aktif) DiAtasZamrud else Redup,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            tgl.toString(),
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (aktif) DiAtasZamrud else Teks,
-        )
-        Spacer(Modifier.height(6.dp))
-        Box(
-            Modifier
-                .size(6.dp)
-                .clip(CircleShape)
-                .background(if (ada) (if (aktif) DiAtasZamrud else Zamrud) else Color.Transparent),
-        )
-    }
-}
-
 private fun hitungMundur(
     waktuDetik: Long,
     sekarang: Long,
@@ -4291,9 +4249,133 @@ private fun hitungMundur(
     val jam = selisih / 3_600_000L
     val menit = (selisih % 3_600_000L) / 60_000L
     return when {
-        jam >= 24 -> "Tayang dalam " + (jam / 24) + " h " + (jam % 24) + " j"
-        jam >= 1 -> "Tayang dalam " + jam + " j " + menit + " m"
-        else -> "Tayang dalam " + maxOf(menit, 1L) + " m"
+        jam >= 24 -> "Dalam " + (jam / 24) + " h " + (jam % 24) + " j"
+        jam >= 1 -> "Dalam " + jam + " j " + menit + " m"
+        else -> "Dalam " + maxOf(menit, 1L) + " m"
+    }
+}
+
+private fun jamTayang(detik: Long): String {
+    val c =
+        java.util.Calendar
+            .getInstance()
+            .apply { timeInMillis = detik * 1000L }
+    return String.format("%02d.%02d", c.get(java.util.Calendar.HOUR_OF_DAY), c.get(java.util.Calendar.MINUTE))
+}
+
+@Composable
+private fun HariMinggu(
+    label: String,
+    tgl: Int,
+    ada: Boolean,
+    aktif: Boolean,
+    modifier: Modifier,
+    onKlik: () -> Unit,
+) {
+    val latar by animateColorAsState(if (aktif) Zamrud else Color.Transparent, label = "hari")
+    Column(
+        modifier
+            .clip(RoundedCornerShape(22.dp))
+            .background(latar)
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onKlik() }
+            .padding(vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(label, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = if (aktif) DiAtasZamrud else Samar)
+        Spacer(Modifier.height(3.dp))
+        Text(tgl.toString(), fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = if (aktif) DiAtasZamrud else Teks)
+        Spacer(Modifier.height(5.dp))
+        Box(Modifier.size(4.dp).clip(CircleShape).background(if (ada) (if (aktif) DiAtasZamrud else Zamrud) else Color.Transparent))
+    }
+}
+
+@Composable
+private fun JudulBagian(
+    teks: String,
+    jumlah: Int,
+    aksi: String? = null,
+    onAksi: () -> Unit = {},
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 22.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(teks, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Teks)
+        Spacer(Modifier.width(8.dp))
+        Text(jumlah.toString(), fontSize = 13.sp, color = Samar, modifier = Modifier.weight(1f))
+        if (aksi != null) {
+            Text(
+                aksi,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Zamrud,
+                modifier = Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onAksi() },
+            )
+        }
+    }
+}
+
+@Composable
+private fun HeroRilis(
+    s: SlotRilis,
+    j: Judul?,
+    sekarang: Long,
+    suka: Boolean,
+    onKlik: () -> Unit,
+    onSuka: () -> Unit,
+) {
+    val bentuk = RoundedCornerShape(28.dp)
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp)
+            .height(184.dp)
+            .clip(bentuk)
+            .background(Kartu)
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onKlik() },
+    ) {
+        val gambar = if (j != null) j.poster else s.sampul
+        if (gambar.isNotBlank()) Gambar(gambar, Modifier.fillMaxSize())
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.horizontalGradient(listOf(Latar.copy(alpha = 0.97f), Latar.copy(alpha = 0.82f), Color.Transparent)),
+            ),
+        )
+        Column(Modifier.fillMaxHeight().fillMaxWidth(0.68f).padding(18.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Column {
+                Box(Modifier.clip(RoundedCornerShape(50)).background(Zamrud).padding(horizontal = 10.dp, vertical = 3.dp)) {
+                    Text("Berikutnya", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = DiAtasZamrud)
+                }
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    s.judul,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Teks,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 24.sp,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text("Episode " + s.episode + "  " + s.format, fontSize = 12.5.sp, color = Redup)
+            }
+            Column {
+                Text(jamTayang(s.waktu), fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = Teks)
+                Text(hitungMundur(s.waktu, sekarang), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Zamrud)
+            }
+        }
+        if (j != null) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp)
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(Latar.copy(alpha = 0.55f))
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSuka() },
+                contentAlignment = Alignment.Center,
+            ) { Ikon("hati", Modifier.size(20.dp), if (suka) MerahLembut else Teks, terisi = suka) }
+        }
     }
 }
 
@@ -4306,97 +4388,94 @@ private fun BarisRilis(
     onKlik: () -> Unit,
     onSuka: () -> Unit,
 ) {
-    val c =
-        java.util.Calendar
-            .getInstance()
-            .apply { timeInMillis = s.waktu * 1000L }
-    val jam = String.format("%02d.%02d", c.get(java.util.Calendar.HOUR_OF_DAY), c.get(java.util.Calendar.MINUTE))
     val sudah = s.waktu * 1000L <= sekarang
-    Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.Top) {
-        Text(
-            jam,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = if (sudah) Samar else Teks,
-            modifier = Modifier.width(54.dp).padding(top = 14.dp),
-        )
+    Column(Modifier.graphicsLayer { alpha = if (sudah || j == null) 0.62f else 1f }) {
         Row(
             Modifier
-                .weight(1f)
-                .clip(RoundedCornerShape(20.dp))
-                .background(Kartu)
+                .fillMaxWidth()
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onKlik() }
-                .padding(10.dp),
+                .padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.width(62.dp).height(90.dp).clip(RoundedCornerShape(14.dp))) {
-                if (j != null) {
-                    Gambar(j.poster, Modifier.fillMaxSize())
-                } else if (s.sampul.isNotBlank()) {
-                    Gambar(s.sampul, Modifier.fillMaxSize())
-                } else {
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .background(Brush.verticalGradient(listOf(ZamrudGelap, Latar))),
-                    )
-                }
-                Box(
-                    Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(5.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Latar.copy(alpha = 0.78f))
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
-                ) {
-                    Text("EP " + s.episode, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Zamrud)
-                }
+            Text(jamTayang(s.waktu), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Teks, modifier = Modifier.width(52.dp))
+            Box(
+                Modifier
+                    .width(52.dp)
+                    .height(72.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Kartu),
+            ) {
+                val gambar = if (j != null) j.poster else s.sampul
+                if (gambar.isNotBlank()) Gambar(gambar, Modifier.fillMaxSize())
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.Top) {
-                    Text(
-                        s.judul,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (j != null) Teks else Redup,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        lineHeight = 19.sp,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (j != null) {
-                        Box(
-                            Modifier
-                                .size(30.dp)
-                                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSuka() },
-                            contentAlignment = Alignment.Center,
+                Text(
+                    s.judul,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Teks,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 19.sp,
+                )
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    "Episode " + s.episode + "  " + s.format +
+                        if (j ==
+                            null
                         ) {
-                            Ikon("hati", Modifier.size(20.dp), if (suka) MerahLembut else Redup, terisi = suka)
-                        }
-                    }
-                }
-                Spacer(Modifier.height(2.dp))
-                Text(s.format, fontSize = 13.sp, color = Redup)
-                if (j == null) {
-                    Spacer(Modifier.height(6.dp))
-                    Box(
-                        Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .border(1.dp, Kartu2, RoundedCornerShape(10.dp))
-                            .padding(horizontal = 8.dp, vertical = 2.dp),
-                    ) {
-                        Text("Belum di katalog", fontSize = 11.5.sp, color = Samar)
-                    }
-                }
-                Spacer(Modifier.height(10.dp))
+                            "  Belum di katalog"
+                        } else {
+                            ""
+                        },
+                    fontSize = 12.sp,
+                    color = Samar,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(5.dp))
                 Text(
                     hitungMundur(s.waktu, sekarang),
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (sudah) Redup else Zamrud,
+                    color = if (sudah) Samar else Zamrud,
                 )
             }
+            if (j != null) {
+                Box(
+                    Modifier
+                        .size(
+                            36.dp,
+                        ).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSuka() },
+                    contentAlignment = Alignment.Center,
+                ) { Ikon("hati", Modifier.size(20.dp), if (suka) MerahLembut else Samar, terisi = suka) }
+            }
         }
+        Box(
+            Modifier
+                .padding(start = 84.dp, end = 18.dp)
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(Garis.copy(alpha = 0.6f)),
+        )
+    }
+}
+
+@Composable
+private fun PilihanSegmen(
+    label: String,
+    aktif: Boolean,
+    onKlik: () -> Unit,
+) {
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (aktif) Kartu2 else Color.Transparent)
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onKlik() }
+            .padding(horizontal = 14.dp, vertical = 7.dp),
+    ) {
+        Text(label, fontSize = 13.sp, fontWeight = if (aktif) FontWeight.Bold else FontWeight.Medium, color = if (aktif) Teks else Samar)
     }
 }
 
@@ -4410,6 +4489,7 @@ fun LayarJadwal(
     LaunchedEffect(Unit) { JadwalRilis.muat() }
     var hari by rememberSaveable { mutableStateOf(0) }
     var hanyaKatalog by rememberSaveable { mutableStateOf(false) }
+    var lihatSudah by rememberSaveable { mutableStateOf(false) }
     var sekarang by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -4427,7 +4507,7 @@ fun LayarJadwal(
         remember(slot, batas) {
             List(7) { i -> slot.indices.filter { slot[it].waktu * 1000L >= batas[i] && slot[it].waktu * 1000L < batas[i + 1] } }
         }
-    val singkat = listOf("MIN", "SEN", "SEL", "RAB", "KAM", "JUM", "SAB")
+    val singkat = listOf("Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab")
     val lengkap = listOf("Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu")
     val kalHari =
         remember(batas) {
@@ -4438,69 +4518,62 @@ fun LayarJadwal(
             }
         }
 
-    Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        Text(
-            "Jadwal Rilis",
-            fontSize = 27.sp,
-            fontWeight = FontWeight.Bold,
-            color = Teks,
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
-        )
-        Text(
-            "Waktu setempat ($zona)",
-            fontSize = 12.5.sp,
-            color = Samar,
-            modifier = Modifier.padding(horizontal = 18.dp),
-        )
-        Spacer(Modifier.height(14.dp))
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 18.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(ZamrudGelap.copy(alpha = 0.3f), Color.Transparent), startY = 0f, endY = 900f))
+            .statusBarsPadding(),
+    ) {
+        Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Jadwal Rilis",
+                fontSize = 30.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = (-0.5).sp,
+                color = Teks,
+                modifier = Modifier.weight(1f),
+            )
+            Text(zona, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Samar)
+        }
+        Spacer(Modifier.height(16.dp))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = 18.dp,
+                ).clip(RoundedCornerShape(28.dp))
+                .background(Kartu.copy(alpha = 0.85f))
+                .padding(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            items(7) { i ->
+            for (i in 0 until 7) {
                 val c = kalHari[i]
-                ChipHari(
-                    label = if (i == 0) "HARI INI" else singkat[c.get(java.util.Calendar.DAY_OF_WEEK) - 1],
+                HariMinggu(
+                    label = singkat[c.get(java.util.Calendar.DAY_OF_WEEK) - 1],
                     tgl = c.get(java.util.Calendar.DAY_OF_MONTH),
-                    aktif = hari == i,
                     ada = tiapHari[i].isNotEmpty(),
+                    aktif = hari == i,
+                    modifier = Modifier.weight(1f),
                     onKlik = { hari = i },
                 )
             }
         }
         Spacer(Modifier.height(18.dp))
         val cH = kalHari[hari]
-        val namaHari = lengkap[cH.get(java.util.Calendar.DAY_OF_WEEK) - 1] + " " + cH.get(java.util.Calendar.DAY_OF_MONTH)
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                if (hari == 0) "Hari ini, $namaHari" else namaHari,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = Teks,
-                modifier = Modifier.weight(1f),
-            )
-            Spacer(Modifier.width(10.dp))
-            val bentukPil = RoundedCornerShape(50)
-            Box(
-                Modifier
-                    .clip(bentukPil)
-                    .background(if (hanyaKatalog) Zamrud else Color.Transparent)
-                    .border(1.dp, if (hanyaKatalog) Zamrud else Kartu2, bentukPil)
-                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                        hanyaKatalog =
-                            !hanyaKatalog
-                    }.padding(horizontal = 16.dp, vertical = 9.dp),
-            ) {
+        val namaHari = lengkap[cH.get(java.util.Calendar.DAY_OF_WEEK) - 1] + ", " + cH.get(java.util.Calendar.DAY_OF_MONTH)
+        val diKatalog = tiapHari[hari].count { cocok[it] != null }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(if (hari == 0) "Hari ini" else namaHari, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Teks)
                 Text(
-                    "Hanya di katalog",
-                    fontSize = 13.5.sp,
-                    color = if (hanyaKatalog) DiAtasZamrud else Teks,
-                    fontWeight = if (hanyaKatalog) FontWeight.SemiBold else FontWeight.Normal,
+                    if (slot.isEmpty()) namaHari else "${tiapHari[hari].size} rilis, $diKatalog di katalog",
+                    fontSize = 12.5.sp,
+                    color = Samar,
                 )
+            }
+            Row(Modifier.clip(RoundedCornerShape(50)).background(Kartu).padding(3.dp)) {
+                PilihanSegmen("Semua", !hanyaKatalog) { hanyaKatalog = false }
+                PilihanSegmen("Di katalog", hanyaKatalog) { hanyaKatalog = true }
             }
         }
         Spacer(Modifier.height(14.dp))
@@ -4508,6 +4581,10 @@ fun LayarJadwal(
             KeadaanMuatAtauGagal(gagal = JadwalRilis.gagal) { lingkupJadwal.launch { JadwalRilis.muat(paksa = true) } }
         } else {
             val tampil = tiapHari[hari].filter { !hanyaKatalog || cocok[it] != null }
+            val sudah = tampil.filter { slot[it].waktu * 1000L <= sekarang }
+            val akan = tampil.filter { slot[it].waktu * 1000L > sekarang }
+            val utama = if (hari == 0) akan.firstOrNull() else null
+            val sisa = if (utama != null) akan.drop(1) else akan
             if (tampil.isEmpty()) {
                 Box(Modifier.fillMaxWidth().padding(top = 48.dp), contentAlignment = Alignment.TopCenter) {
                     KeadaanKosong(
@@ -4516,21 +4593,62 @@ fun LayarJadwal(
                     )
                 }
             } else {
-                LazyColumn(
-                    Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 120.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(tampil, key = { it }) { idx ->
+                LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 120.dp)) {
+                    if (utama != null) {
+                        item(key = "utama") {
+                            val j = cocok[utama]
+                            HeroRilis(slot[utama], j, sekarang, j != null && favorit.contains(j.id), {
+                                if (j !=
+                                    null
+                                ) {
+                                    onDetail(j)
+                                }
+                            }, { if (j != null) onToggleFav(j) })
+                        }
+                    }
+                    if (sisa.isNotEmpty()) {
+                        item(key = "h-akan") {
+                            JudulBagian(
+                                if (utama !=
+                                    null
+                                ) {
+                                    "Selanjutnya"
+                                } else {
+                                    "Akan tayang"
+                                },
+                                sisa.size,
+                            )
+                        }
+                    }
+                    items(sisa, key = { it }) { idx ->
                         val j = cocok[idx]
-                        BarisRilis(
-                            s = slot[idx],
-                            j = j,
-                            sekarang = sekarang,
-                            suka = j != null && favorit.contains(j.id),
-                            onKlik = { if (j != null) onDetail(j) },
-                            onSuka = { if (j != null) onToggleFav(j) },
-                        )
+                        BarisRilis(slot[idx], j, sekarang, j != null && favorit.contains(j.id), {
+                            if (j !=
+                                null
+                            ) {
+                                onDetail(j)
+                            }
+                        }, { if (j != null) onToggleFav(j) })
+                    }
+                    if (sudah.isNotEmpty()) {
+                        item(key = "h-sudah") {
+                            JudulBagian("Sudah tayang", sudah.size, if (lihatSudah) "Sembunyikan" else "Tampilkan") {
+                                lihatSudah =
+                                    !lihatSudah
+                            }
+                        }
+                    }
+                    if (lihatSudah) {
+                        items(sudah, key = { it }) { idx ->
+                            val j = cocok[idx]
+                            BarisRilis(slot[idx], j, sekarang, j != null && favorit.contains(j.id), {
+                                if (j !=
+                                    null
+                                ) {
+                                    onDetail(j)
+                                }
+                            }, { if (j != null) onToggleFav(j) })
+                        }
                     }
                 }
             }
