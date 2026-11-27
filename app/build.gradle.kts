@@ -10,6 +10,18 @@ android {
     namespace = "com.animeid.app"
     compileSdk = 37
 
+    // Keystore debug tetap di repo (app/debug.keystore) supaya tanda tangan
+    // APK debug sama di semua run GitHub Actions dan bisa diperbarui
+    // tanpa hapus aplikasi dulu. Ini kunci debug standar (bukan rahasia).
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     defaultConfig {
         minSdk = 26
         targetSdk = 36
@@ -63,5 +75,6 @@ dependencies {
     implementation("androidx.media3:media3-datasource-okhttp:1.11.1")
     implementation("androidx.work:work-runtime-ktx:2.12.0")
 }
+
 
 
