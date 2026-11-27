@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class, androidx.media3.common.util.UnstableApi::class)
 
 package com.animeid.app
 
@@ -6978,4 +6978,5 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
 
