@@ -3165,76 +3165,85 @@ fun LayarBeranda(
                         Row(
                             Modifier
                                 .fillMaxWidth()
-                                .padding(top = 8.dp, start = 18.dp, end = 18.dp, bottom = 14.dp),
+                                .padding(top = 6.dp, start = 20.dp, end = 20.dp, bottom = 18.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            // Wordmark polos (tanpa kapsul) supaya tidak terlihat seperti tombol
+                            // Logo kapsul kaca: huruf modern tanpa ikon, ".id" bergradien zamrud
                             Row(Modifier.weight(1f)) {
-                                Text(
-                                    "anime",
-                                    modifier = Modifier.alignByBaseline(),
-                                    fontFamily = FontLogo,
-                                    fontSize = 27.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    letterSpacing = (-1).sp,
-                                    color = Teks,
-                                )
-                                Text(
-                                    ".id",
-                                    modifier = Modifier.alignByBaseline(),
-                                    style =
-                                        TextStyle(
-                                            brush = Brush.horizontalGradient(listOf(ZamrudTerang, Zamrud)),
-                                            fontFamily = FontLogo,
-                                            fontSize = 27.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            letterSpacing = (-1).sp,
-                                        ),
-                                )
-                            }
-                            // Cari + lonceng disatukan dalam satu kapsul kaca
-                            Row(
-                                Modifier
-                                    .clip(CircleShape)
-                                    .background(Color(0x14FFFFFF))
-                                    .border(
-                                        1.dp,
-                                        Brush.horizontalGradient(listOf(Color(0x1FFFFFFF), ZamrudTerang.copy(alpha = 0.40f))),
-                                        CircleShape,
-                                    ).padding(2.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Box(
+                                Row(
                                     Modifier
-                                        .size(44.dp)
-                                        .clip(CircleShape)
-                                        .clickable { modeCari = true }
-                                        .semantics { contentDescription = "Cari" },
-                                    contentAlignment = Alignment.Center,
-                                ) { Ikon("cari", Modifier.size(22.dp), Teks) }
-                                Box(Modifier.width(1.dp).height(18.dp).background(Color(0x29FFFFFF)))
-                                Box(
-                                    Modifier
-                                        .size(44.dp)
-                                        .clip(CircleShape)
-                                        .clickable {
-                                            kotakNotif = true
-                                            tandaiKabarDibaca(ctx)
-                                        }.semantics { contentDescription = if (adaBaru) "Notifikasi, ada yang baru" else "Notifikasi" },
-                                    contentAlignment = Alignment.Center,
+                                        .height(42.dp)
+                                        .clip(RoundedCornerShape(50))
+                                        .background(
+                                            Brush.horizontalGradient(
+                                                listOf(Color(0x2EFFFFFF), Color(0x0FFFFFFF)),
+                                            ),
+                                        ).border(
+                                            1.dp,
+                                            Brush.horizontalGradient(
+                                                listOf(ZamrudTerang.copy(alpha = 0.55f), Color(0x1FFFFFFF)),
+                                            ),
+                                            RoundedCornerShape(50),
+                                        ).padding(horizontal = 18.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    Ikon("lonceng", Modifier.size(22.dp), Teks)
-                                    if (adaBaru) {
-                                        Box(
-                                            Modifier
-                                                .align(Alignment.TopEnd)
-                                                .padding(top = 10.dp, end = 10.dp)
-                                                .size(9.dp)
-                                                .background(Latar, CircleShape)
-                                                .padding(1.5.dp)
-                                                .background(ZamrudTerang, CircleShape),
-                                        )
-                                    }
+                                    Text(
+                                        "anime",
+                                        modifier = Modifier.alignByBaseline(),
+                                        fontFamily = FontLogo,
+                                        fontSize = 27.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        letterSpacing = (-1).sp,
+                                        color = Teks,
+                                    )
+                                    Text(
+                                        ".id",
+                                        modifier = Modifier.alignByBaseline(),
+                                        style =
+                                            TextStyle(
+                                                brush = Brush.horizontalGradient(listOf(ZamrudTerang, Zamrud)),
+                                                fontFamily = FontLogo,
+                                                fontSize = 27.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                letterSpacing = (-1).sp,
+                                            ),
+                                    )
+                                }
+                            }
+                            // Tombol kaca bulat: cari
+                            Box(
+                                Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0x1AFFFFFF))
+                                    .border(1.dp, Color(0x29FFFFFF), CircleShape)
+                                    .clickable { modeCari = true },
+                                contentAlignment = Alignment.Center,
+                            ) { Ikon("cari", Modifier.size(22.dp), Teks) }
+                            Spacer(Modifier.width(10.dp))
+                            // Tombol kaca bulat: lonceng (notifikasi belum ada -> "Segera hadir", sama seperti menu Akun)
+                            Box(
+                                Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0x1AFFFFFF))
+                                    .border(1.dp, Color(0x29FFFFFF), CircleShape)
+                                    .clickable {
+                                        kotakNotif = true
+                                        tandaiKabarDibaca(ctx)
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Ikon("lonceng", Modifier.size(22.dp), Teks)
+                                if (adaBaru) {
+                                    Box(
+                                        Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(top = 7.dp, end = 8.dp)
+                                            .size(12.dp)
+                                            .background(Zamrud, CircleShape)
+                                            .border(2.dp, Color(0xFF1B2B22), CircleShape),
+                                    )
                                 }
                             }
                         }
@@ -4302,29 +4311,6 @@ object JadwalRilis {
         }
         return semua
     }
-}
-
-private fun hitungMundur(
-    waktuDetik: Long,
-    sekarang: Long,
-): String {
-    val selisih = waktuDetik * 1000L - sekarang
-    if (selisih <= 0L) return "Sudah tayang"
-    val jam = selisih / 3_600_000L
-    val menit = (selisih % 3_600_000L) / 60_000L
-    return when {
-        jam >= 24 -> "Dalam " + (jam / 24) + " h " + (jam % 24) + " j"
-        jam >= 1 -> "Dalam " + jam + " j " + menit + " m"
-        else -> "Dalam " + maxOf(menit, 1L) + " m"
-    }
-}
-
-private fun jamTayang(detik: Long): String {
-    val c =
-        java.util.Calendar
-            .getInstance()
-            .apply { timeInMillis = detik * 1000L }
-    return String.format("%02d.%02d", c.get(java.util.Calendar.HOUR_OF_DAY), c.get(java.util.Calendar.MINUTE))
 }
 
 @Composable
