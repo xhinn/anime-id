@@ -137,7 +137,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -189,6 +191,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
@@ -293,10 +296,33 @@ private fun Nav.jenis() =
 // selama halaman putar tampil, dibaca MainActivity saat pengguna meninggalkan
 // aplikasi (tombol Beranda) supaya video mengecil jadi jendela melayang.
 object KeadaanPip {
-    var halamanPutarAktif = false
+    // state Compose: MainActivity memantaunya untuk menyalakan/mematikan masuk-PiP otomatis
+    var halamanPutarAktif by mutableStateOf(false)
 
     // true selama aplikasi berada di jendela kecil (PiP) sistem; dibaca Compose
     var sedangPip by mutableStateOf(false)
+
+    // pemutar yang sedang aktif (halaman putar ATAU mini pemutar): dipakai tombol putar/jeda PiP
+    var pemutar: androidx.media3.common.Player? = null
+
+    // status putar terakhir, supaya ikon aksi PiP selalu sesuai
+    var sedangMain by mutableStateOf(true)
+
+    // area video di layar (jendela), dipakai sebagai petunjuk animasi masuk/keluar PiP
+    var rect by mutableStateOf<android.graphics.Rect?>(null)
+
+    // PiP selalu 16:9 (sama dengan kartu mini dalam aplikasi): petunjuk area dipotong
+    // jadi 16:9 di tengah area video, supaya animasi sistem tidak meregang.
+    fun rectPip(b: androidx.compose.ui.geometry.Rect): android.graphics.Rect {
+        val l = b.width
+        val t = b.height
+        if (l <= 1f || t <= 1f) return android.graphics.Rect()
+        val w = if (l / t > 16f / 9f) t * 16f / 9f else l
+        val h = w * 9f / 16f
+        val x = b.left + (l - w) / 2f
+        val y = b.top + (t - h) / 2f
+        return android.graphics.Rect(x.roundToInt(), y.roundToInt(), (x + w).roundToInt(), (y + h).roundToInt())
+    }
 }
 
 // Putar otomatis ke episode berikutnya membuat ulang halaman putar; penanda ini
@@ -320,6 +346,10 @@ object KeadaanMini {
     var jalur by mutableStateOf("")
     var posisi by mutableStateOf(0)
     var versi by mutableStateOf(0) // naik tiap sesi baru supaya pemutar mini dibuat ulang
+
+    // sudut tempat kartu terakhir diparkir; bertahan lintas sesi mini dan rotasi
+    var diKanan by mutableStateOf(true)
+    var diBawah by mutableStateOf(true)
 
     fun siapkan(
         j: Judul,
@@ -7885,7 +7915,7 @@ fun PemutarExo(
     // jendela kecil (PiP): kontrol disembunyikan supaya tidak menutupi video mungil
     val konfigPemutar = androidx.compose.ui.platform.LocalConfiguration.current
     val modePip =
-        konfigPemutar.screenHeightDp < 260 ||
+        KeadaanPip.sedangPip || konfigPemutar.screenHeightDp < 260 ||
             (ctx as? android.app.Activity)?.isInPictureInPictureMode == true
 
     // Perkiraan kecepatan: mulai dari kecepatan terukur terakhir (disimpan di prefs),
@@ -8071,6 +8101,13 @@ fun PemutarExo(
         }
     }
 
+    // daftarkan pemutar aktif untuk tombol putar/jeda di jendela PiP sistem
+    DisposableEffect(exo) {
+        KeadaanPip.pemutar = exo
+        KeadaanPip.sedangMain = exo.playWhenReady
+        onDispose { if (KeadaanPip.pemutar === exo) KeadaanPip.pemutar = null }
+    }
+
     DisposableEffect(exo) {
         var dilepas = false
         val pendengar =
@@ -8089,6 +8126,7 @@ fun PemutarExo(
 
                 override fun onIsPlayingChanged(playing: Boolean) {
                     main = playing
+                    KeadaanPip.sedangMain = playing
                 }
 
                 override fun onPlayWhenReadyChanged(
@@ -8274,7 +8312,11 @@ fun PemutarExo(
         if (!seret) pecahanGeser = if (durasi > 0) posisi.toFloat() / durasi else 0f
     }
 
-    Box(modifier.background(Color.Black)) {
+    Box(
+        modifier.background(Color.Black).onGloballyPositioned {
+            KeadaanPip.rect = KeadaanPip.rectPip(it.boundsInWindow())
+        },
+    ) {
         AndroidView(
             factory = { c ->
                 PlayerView(c).apply {
@@ -8358,9 +8400,11 @@ fun PemutarExo(
                 Modifier.align(Alignment.Center),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                androidx.compose.material3.LoadingIndicator(color = Zamrud, modifier = Modifier.size(48.dp))
-                Spacer(Modifier.height(12.dp))
-                Text("Memuat video…", color = Color.White, fontSize = 14.sp)
+                androidx.compose.material3.LoadingIndicator(color = Zamrud, modifier = Modifier.size(if (modePip) 26.dp else 48.dp))
+                if (!modePip) {
+                    Spacer(Modifier.height(12.dp))
+                    Text("Memuat video…", color = Color.White, fontSize = 14.sp)
+                }
             }
         }
 
@@ -8404,8 +8448,22 @@ fun PemutarExo(
         if (buffering && !memuatAwal && !gagalTotal) {
             androidx.compose.material3.LoadingIndicator(
                 color = Zamrud,
-                modifier = Modifier.align(Alignment.Center).size(44.dp),
+                modifier = Modifier.align(Alignment.Center).size(if (modePip) 26.dp else 44.dp),
             )
+        }
+
+        // PiP sistem: garis progres 2dp rata dasar, identik dengan kartu mini dalam aplikasi
+        if (modePip && !gagalTotal) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .height(2.dp)
+                    .background(Color.White.copy(alpha = 0.25f)),
+            ) {
+                val frac = if (durasi > 0) (posisi.toFloat() / durasi).coerceIn(0f, 1f) else 0f
+                Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(Zamrud))
+            }
         }
 
         if (tampil && !gagalTotal && !modePip) {
@@ -8755,6 +8813,7 @@ private fun MiniIsi(
                     reason: Int,
                 ) {
                     main = playWhenReady
+                    KeadaanPip.sedangMain = playWhenReady
                 }
 
                 override fun onPlayerError(error: PlaybackException) {
@@ -8783,6 +8842,13 @@ private fun MiniIsi(
             simpan()
             exo.release()
         }
+    }
+
+    // daftarkan pemutar aktif untuk tombol putar/jeda di jendela PiP sistem
+    DisposableEffect(exo) {
+        KeadaanPip.pemutar = exo
+        KeadaanPip.sedangMain = exo.playWhenReady
+        onDispose { if (KeadaanPip.pemutar === exo) KeadaanPip.pemutar = null }
     }
 
     LaunchedEffect(exo) {
@@ -8819,6 +8885,16 @@ private fun MiniIsi(
                     modifier = Modifier.align(Alignment.Center).size(26.dp),
                 )
             }
+            Box(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .height(2.dp)
+                    .background(Color.White.copy(alpha = 0.25f)),
+            ) {
+                val frac = if (durasi > 0) (posisi.toFloat() / durasi).coerceIn(0f, 1f) else 0f
+                Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(Zamrud))
+            }
         }
         return
     }
@@ -8833,18 +8909,28 @@ private fun MiniIsi(
         // batas geser: kiri-kanan dan atas-bawah, supaya kartu tidak keluar layar
         val lebih = px(90.dp) // geser melewati tepi sejauh ini = tutup
         val minX = -(px(maxWidth) - px(lebarKartu) - 2f * px(tepi))
-        val minY = -(px(maxHeight) - px(tinggiKartu) - px(jarakBawah) - px(insetAtas) - px(tepi))
-        val maksY = px(jarakBawah) - px(tepi)
+        // batas atas: tepat di bawah header Beranda (logo, cari, lonceng), jadi tidak menutupinya
+        val ruangHeader = insetAtas + 64.dp
+        val minY =
+            -(px(maxHeight) - px(tinggiKartu) - px(jarakBawah) - px(ruangHeader))
+                .coerceAtLeast(0f)
+        // batas bawah: posisi awal (tepat di atas kapsul navigasi), tidak boleh menutupinya
+        val maksY = 0f
         val gx =
             remember {
                 androidx.compose.animation.core
-                    .Animatable(0f)
+                    .Animatable(if (KeadaanMini.diKanan) 0f else minX)
             }
         val gy =
             remember {
                 androidx.compose.animation.core
-                    .Animatable(0f)
+                    .Animatable(if (KeadaanMini.diBawah) 0f else minY)
             }
+        // rotasi / split-screen / kembali dari PiP sistem: tempelkan ulang ke sudut tersimpan
+        LaunchedEffect(minX, minY) {
+            gx.snapTo(if (KeadaanMini.diKanan) 0f else minX)
+            gy.snapTo(if (KeadaanMini.diBawah) 0f else minY)
+        }
         val masuk =
             remember {
                 androidx.compose.animation.core
@@ -8908,6 +8994,7 @@ private fun MiniIsi(
                         androidx.compose.ui.graphics
                             .TransformOrigin(1f, 1f)
                 }.size(lebarKartu, tinggiKartu)
+                .onGloballyPositioned { KeadaanPip.rect = KeadaanPip.rectPip(it.boundsInWindow()) }
                 .shadow(14.dp, bentuk)
                 .clip(bentuk)
                 .background(Color.Black)
@@ -8948,12 +9035,14 @@ private fun MiniIsi(
                                     )
                                     KeadaanMini.tutup()
                                 } else {
-                                    // menempel ke tepi kiri / kanan terdekat
-                                    gx.animateTo(
-                                        if (gx.value < minX / 2f) minX else 0f,
+                                    // menempel ke sudut terdekat (empat sudut), lalu diingat
+                                    KeadaanMini.diKanan = gx.value >= minX / 2f
+                                    KeadaanMini.diBawah = gy.value >= minY / 2f
+                                    val pegas =
                                         androidx.compose.animation.core
-                                            .spring(dampingRatio = 0.8f, stiffness = 400f),
-                                    )
+                                            .spring<Float>(dampingRatio = 0.8f, stiffness = 400f)
+                                    launch { gy.animateTo(if (KeadaanMini.diBawah) 0f else minY, pegas) }
+                                    gx.animateTo(if (KeadaanMini.diKanan) 0f else minX, pegas)
                                 }
                             }
                         },
@@ -8971,7 +9060,7 @@ private fun MiniIsi(
                     PlayerView(c).apply {
                         player = exo
                         useController = false
-                        resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                     }
                 },
                 onRelease = { it.player = null },
@@ -8993,24 +9082,30 @@ private fun MiniIsi(
                     modifier = Modifier.align(Alignment.Center).size(26.dp),
                 )
             }
-            // tutup (X) — kaca: putih transparan + garis tepi tipis (sama dengan pil lompat)
+            // tutup (X) — area sentuh 44dp, tampilan kaca tetap 26dp (putih transparan + garis tepi tipis)
             Box(
                 Modifier
                     .align(Alignment.TopEnd)
-                    .padding(7.dp)
-                    .size(26.dp)
-                    .graphicsLayer { this.alpha = alfaKontrol }
+                    .size(44.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.15f))
-                    .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape)
                     .clickable(enabled = kontrol) { KeadaanMini.tutup() },
                 contentAlignment = Alignment.Center,
             ) {
-                Canvas(Modifier.size(10.dp)) {
-                    val tebal = size.width * 0.26f
-                    val ujung = androidx.compose.ui.graphics.StrokeCap.Round
-                    drawLine(Color.White, Offset(0f, 0f), Offset(size.width, size.height), strokeWidth = tebal, cap = ujung)
-                    drawLine(Color.White, Offset(size.width, 0f), Offset(0f, size.height), strokeWidth = tebal, cap = ujung)
+                Box(
+                    Modifier
+                        .size(26.dp)
+                        .graphicsLayer { this.alpha = alfaKontrol }
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.15f))
+                        .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Canvas(Modifier.size(10.dp)) {
+                        val tebal = size.width * 0.26f
+                        val ujung = androidx.compose.ui.graphics.StrokeCap.Round
+                        drawLine(Color.White, Offset(0f, 0f), Offset(size.width, size.height), strokeWidth = tebal, cap = ujung)
+                        drawLine(Color.White, Offset(size.width, 0f), Offset(0f, size.height), strokeWidth = tebal, cap = ujung)
+                    }
                 }
             }
             // putar / jeda: ikon berganti dengan animasi (mengecil + berputar, yang lain muncul membal)
@@ -9024,58 +9119,65 @@ private fun MiniIsi(
             Box(
                 Modifier
                     .align(Alignment.BottomStart)
-                    .padding(start = 7.dp, bottom = 14.dp)
-                    .size(32.dp)
-                    .graphicsLayer { this.alpha = alfaKontrol }
+                    .padding(start = 1.dp, bottom = 8.dp)
+                    .size(44.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.15f))
-                    .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape)
                     .clickable(enabled = kontrol) {
                         kunciKontrol += 1
                         if (exo.playWhenReady) exo.pause() else exo.play()
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                // ikon jeda (dua batang)
-                Canvas(
-                    Modifier.size(14.dp).graphicsLayer {
-                        val k = pj
-                        this.alpha = k.coerceIn(0f, 1f)
-                        scaleX = 0.3f + 0.7f * k
-                        scaleY = 0.3f + 0.7f * k
-                        rotationZ = (1f - k) * 90f
-                    },
+                Box(
+                    Modifier
+                        .size(32.dp)
+                        .graphicsLayer { this.alpha = alfaKontrol }
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.15f))
+                        .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    val lb = size.width * 3f / 14f
-                    drawRoundRect(
-                        Color.White,
-                        Offset(size.width * 2.5f / 14f, size.height * 1.5f / 14f),
-                        Size(lb, size.height * 11f / 14f),
-                        CornerRadius(lb / 3f),
-                    )
-                    drawRoundRect(
-                        Color.White,
-                        Offset(size.width * 8.5f / 14f, size.height * 1.5f / 14f),
-                        Size(lb, size.height * 11f / 14f),
-                        CornerRadius(lb / 3f),
-                    )
-                }
-                // ikon putar (segitiga)
-                Canvas(
-                    Modifier.size(14.dp).graphicsLayer {
-                        val k = 1f - pj
-                        this.alpha = k.coerceIn(0f, 1f)
-                        scaleX = 0.3f + 0.7f * k
-                        scaleY = 0.3f + 0.7f * k
-                        rotationZ = -(1f - k) * 90f
-                    },
-                ) {
-                    val tr = Path()
-                    tr.moveTo(size.width * 3.5f / 14f, size.height * 1.8f / 14f)
-                    tr.lineTo(size.width * 11.5f / 14f, size.height * 7f / 14f)
-                    tr.lineTo(size.width * 3.5f / 14f, size.height * 12.2f / 14f)
-                    tr.close()
-                    drawPath(tr, Color.White, style = Fill)
+                    // ikon jeda (dua batang)
+                    Canvas(
+                        Modifier.size(14.dp).graphicsLayer {
+                            val k = pj
+                            this.alpha = k.coerceIn(0f, 1f)
+                            scaleX = 0.3f + 0.7f * k
+                            scaleY = 0.3f + 0.7f * k
+                            rotationZ = (1f - k) * 90f
+                        },
+                    ) {
+                        val lb = size.width * 3f / 14f
+                        drawRoundRect(
+                            Color.White,
+                            Offset(size.width * 2.5f / 14f, size.height * 1.5f / 14f),
+                            Size(lb, size.height * 11f / 14f),
+                            CornerRadius(lb / 3f),
+                        )
+                        drawRoundRect(
+                            Color.White,
+                            Offset(size.width * 8.5f / 14f, size.height * 1.5f / 14f),
+                            Size(lb, size.height * 11f / 14f),
+                            CornerRadius(lb / 3f),
+                        )
+                    }
+                    // ikon putar (segitiga)
+                    Canvas(
+                        Modifier.size(14.dp).graphicsLayer {
+                            val k = 1f - pj
+                            this.alpha = k.coerceIn(0f, 1f)
+                            scaleX = 0.3f + 0.7f * k
+                            scaleY = 0.3f + 0.7f * k
+                            rotationZ = -(1f - k) * 90f
+                        },
+                    ) {
+                        val tr = Path()
+                        tr.moveTo(size.width * 3.5f / 14f, size.height * 1.8f / 14f)
+                        tr.lineTo(size.width * 11.5f / 14f, size.height * 7f / 14f)
+                        tr.lineTo(size.width * 3.5f / 14f, size.height * 12.2f / 14f)
+                        tr.close()
+                        drawPath(tr, Color.White, style = Fill)
+                    }
                 }
             }
             // judul: pil kaca gelap di samping tombol putar
@@ -9096,14 +9198,20 @@ private fun MiniIsi(
                         .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(50))
                         .padding(horizontal = 10.dp, vertical = 4.dp),
             )
-            // progres membulat, berjarak dari tepi kartu (selalu tampil)
+            // progres: garis rata dasar kartu (ikut sudut membulat lewat clip kartu);
+            // 2dp saat kontrol tersembunyi, 4dp saat tampil, supaya subtitle video tidak tertimpa
+            val tinggiProgres by androidx.compose.animation.core.animateDpAsState(
+                targetValue = if (kontrol) 4.dp else 2.dp,
+                animationSpec =
+                    androidx.compose.animation.core
+                        .tween(200),
+                label = "miniProgres",
+            )
             Box(
                 Modifier
                     .align(Alignment.BottomStart)
-                    .padding(start = 10.dp, end = 10.dp, bottom = 7.dp)
                     .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
+                    .height(tinggiProgres)
                     .background(Color.White.copy(alpha = 0.25f)),
             ) {
                 val frac = if (durasi > 0) (posisi.toFloat() / durasi).coerceIn(0f, 1f) else 0f
@@ -9589,6 +9697,16 @@ class MainActivity : ComponentActivity() {
         // dibuka dari notifikasi (bukan pemulihan setelah proses dimatikan/diputar ulang)
         if (savedInstanceState == null) KeadaanBuka.id = intent?.getStringExtra(KeadaanBuka.EKSTRA)
         setContent {
+            // perbarui parameter PiP (masuk otomatis, area video, ikon putar/jeda) saat berubah
+            LaunchedEffect(Unit) {
+                androidx.compose.runtime
+                    .snapshotFlow {
+                        listOf<Any?>(layakPip(), KeadaanPip.rect, KeadaanPip.sedangMain)
+                    }.collectLatest {
+                        delay(150)
+                        perbaruiPip()
+                    }
+            }
             TemaAnime { Aplikasi() }
         }
     }
@@ -9600,31 +9718,112 @@ class MainActivity : ComponentActivity() {
         intent.getStringExtra(KeadaanBuka.EKSTRA)?.let { KeadaanBuka.id = it }
     }
 
-    // Nonton jendela kecil (PiP): meninggalkan aplikasi saat halaman putar
-    // tampil -> video mengecil jadi jendela melayang 16:9 dan tetap jalan.
-    // Di jendela kecil itu halaman putar terbaca lanskap, jadi pemutarnya
-    // memenuhi jendela dengan sendirinya; instance pemutar tidak berganti.
+    // Nonton jendela kecil (PiP): meninggalkan aplikasi saat halaman putar atau mini pemutar
+    // tampil -> video mengecil jadi jendela melayang 16:9 dan tetap jalan. Tampilan di dalam
+    // jendela dibuat sama dengan kartu mini: video 16:9 penuh tanpa kontrol, garis progres 2dp,
+    // latar hitam. Ukuran, sudut, dan bayangan jendela diatur sistem Android (bisa dicubit pengguna).
+    private val aksiPip = "com.animeid.app.PIP_PUTAR_JEDA"
+    private var penerimaAktif = false
+    private val penerimaPip =
+        object : android.content.BroadcastReceiver() {
+            override fun onReceive(
+                context: android.content.Context?,
+                intent: android.content.Intent?,
+            ) {
+                if (intent?.action != aksiPip) return
+                KeadaanPip.pemutar?.let { if (it.playWhenReady) it.pause() else it.play() }
+                perbaruiPip()
+            }
+        }
+
+    private fun layakPip() = KeadaanPip.halamanPutarAktif || KeadaanMini.judul != null
+
+    private fun paramPip(): android.app.PictureInPictureParams {
+        val b =
+            android.app.PictureInPictureParams
+                .Builder()
+                .setAspectRatio(android.util.Rational(16, 9))
+        KeadaanPip.rect?.let { if (!it.isEmpty) b.setSourceRectHint(it) }
+        val main = KeadaanPip.pemutar?.playWhenReady ?: KeadaanPip.sedangMain
+        val label = if (main) "Jeda" else "Putar"
+        val ikon =
+            android.graphics.drawable.Icon.createWithResource(
+                this,
+                if (main) R.drawable.ic_pip_jeda else R.drawable.ic_pip_putar,
+            )
+        val aksi =
+            android.app.PendingIntent.getBroadcast(
+                this,
+                0,
+                android.content.Intent(aksiPip).setPackage(packageName),
+                android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+        b.setActions(listOf(android.app.RemoteAction(ikon, label, label, aksi)))
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            // masuk PiP mulus saat geser Beranda (gestur), hanya bila ada video yang diputar
+            b.setAutoEnterEnabled(layakPip())
+            b.setSeamlessResizeEnabled(true)
+        }
+        return b.build()
+    }
+
+    private fun perbaruiPip() {
+        try {
+            setPictureInPictureParams(paramPip())
+        } catch (e: Exception) {
+            // abaikan
+        }
+    }
+
+    private fun lepasPenerimaPip() {
+        if (penerimaAktif) {
+            try {
+                unregisterReceiver(penerimaPip)
+            } catch (e: Exception) {
+                // abaikan
+            }
+            penerimaAktif = false
+        }
+    }
+
     override fun onPictureInPictureModeChanged(
         isInPictureInPictureMode: Boolean,
         newConfig: android.content.res.Configuration,
     ) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         KeadaanPip.sedangPip = isInPictureInPictureMode
+        if (isInPictureInPictureMode) {
+            // tanpa celah warna di tepi jendela kecil: latar hitam seperti kartu mini
+            window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.BLACK))
+            if (!penerimaAktif) {
+                androidx.core.content.ContextCompat.registerReceiver(
+                    this,
+                    penerimaPip,
+                    android.content.IntentFilter(aksiPip),
+                    androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED,
+                )
+                penerimaAktif = true
+            }
+            perbaruiPip()
+        } else {
+            window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Latar.toArgb()))
+            lepasPenerimaPip()
+        }
     }
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        if (KeadaanPip.halamanPutarAktif || KeadaanMini.judul != null) {
+        if (layakPip() && !isInPictureInPictureMode) {
             try {
-                enterPictureInPictureMode(
-                    android.app.PictureInPictureParams
-                        .Builder()
-                        .setAspectRatio(android.util.Rational(16, 9))
-                        .build(),
-                )
+                enterPictureInPictureMode(paramPip())
             } catch (e: Exception) {
                 // abaikan
             }
         }
+    }
+
+    override fun onDestroy() {
+        lepasPenerimaPip()
+        super.onDestroy()
     }
 }
