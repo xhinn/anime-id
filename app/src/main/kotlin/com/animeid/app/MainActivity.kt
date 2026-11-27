@@ -41,6 +41,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -8665,7 +8666,7 @@ private fun MiniIsi(
                 .background(Color.Black)
                 .border(1.dp, Color.White.copy(alpha = 0.14f), bentuk)
                 .pointerInput(Unit) {
-                    androidx.compose.foundation.gestures.detectTapGestures {
+                    detectTapGestures {
                         if (kontrol) {
                             simpan()
                             onBuka(j, idx)
@@ -8675,7 +8676,7 @@ private fun MiniIsi(
                         }
                     }
                 }.pointerInput(minX, minY, maksY) {
-                    androidx.compose.foundation.gestures.detectDragGestures(
+                    detectDragGestures(
                         onDragStart = {
                             kontrol = true
                             kunciKontrol += 1
