@@ -3959,24 +3959,24 @@ fun LayarUnduhan(onPutar: (Judul, Int) -> Unit = { _, _ -> }) {
                 }
             }
         } else
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(
-                    Modifier.size(76.dp).clip(CircleShape).background(Kartu).border(1.dp, Garis, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) { Ikon("unduhan", Modifier.size(32.dp), Samar) }
-                Spacer(Modifier.height(16.dp))
-                Text("Belum ada unduhan", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Teks)
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "Episode yang kamu unduh akan muncul di sini\n dan bisa ditonton tanpa internet.",
-                    fontSize = 12.5.sp,
-                    color = Samar,
-                    lineHeight = 18.sp,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        Modifier.size(76.dp).clip(CircleShape).background(Kartu).border(1.dp, Garis, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) { Ikon("unduhan", Modifier.size(32.dp), Samar) }
+                    Spacer(Modifier.height(16.dp))
+                    Text("Belum ada unduhan", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Teks)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "Episode yang kamu unduh akan muncul di sini\n dan bisa ditonton tanpa internet.",
+                        fontSize = 12.5.sp,
+                        color = Samar,
+                        lineHeight = 18.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
             }
-        }
         Spacer(Modifier.height(118.dp))
     }
 }
@@ -6978,3 +6978,4 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
