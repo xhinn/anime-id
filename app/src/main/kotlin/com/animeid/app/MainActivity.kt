@@ -5185,6 +5185,7 @@ private fun ChipInfo(teks: String, warna: Color = Redup) {
 }
 
 @Composable
+@UnstableApi
 fun LayarPutar(
     j: Judul,
     indeksEp: Int,
@@ -6540,6 +6541,7 @@ fun PemutarExo(
 
 // ================= Akar aplikasi =================
 @Composable
+@UnstableApi
 fun Aplikasi() {
     val ctx = LocalContext.current
     LaunchedEffect(Unit) {
