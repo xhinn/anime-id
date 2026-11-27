@@ -6914,8 +6914,8 @@ fun Aplikasi() {
     }
 }
 
-@UnstableApi
 class MainActivity : ComponentActivity() {
+    @UnstableApi
     override fun onCreate(savedInstanceState: Bundle?) {
         // Layar pembuka gelap: ditahan sampai katalog siap (maks. 1 detik) lalu
         // dilepas tanpa animasi keluar bawaan sistem -> tidak ada kilatan putih.
