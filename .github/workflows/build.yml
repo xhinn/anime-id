@@ -43,6 +43,11 @@ jobs:
       - name: Run Android Lint
         run: ./gradlew lintDebug --stacktrace
 
+      # Mode laporan dulu: pelanggaran gaya tidak menggagalkan build.
+      - name: Run ktlint
+        continue-on-error: true
+        run: ./gradlew ktlintCheck --stacktrace
+
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
 
@@ -80,3 +85,4 @@ jobs:
             app/build/reports/lint-results-debug.html
             app/build/reports/lint-results-debug.txt
           retention-days: 30
+
