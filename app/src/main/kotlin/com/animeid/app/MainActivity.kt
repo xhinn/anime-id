@@ -206,20 +206,20 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 // ================= Palet Zamrud =================
-private val Latar = Color(0xFF0A140F)
-private val Kartu = Color(0xFF132219)
-private val Kartu2 = Color(0xFF1A2D21)
-private val Garis = Color(0xFF24402F)
-private val Zamrud = Color(0xFF2FBF8F)
+val Latar = Color(0xFF0A140F)
+val Kartu = Color(0xFF132219)
+val Kartu2 = Color(0xFF1A2D21)
+val Garis = Color(0xFF24402F)
+val Zamrud = Color(0xFF2FBF8F)
 private val ZamrudGelap = Color(0xFF1E7A5A)
 private val ZamrudTerang = Color(0xFF4FD6AA) // tint lebih terang dari Zamrud, untuk gradien
 private val DiAtasZamrud = Color(0xFF06231A)
-private val Aksen = ZamrudTerang // aksen Premium = warna zamrud aplikasi
-private val AksenGelap = Zamrud
-private val DiAtasAksen = Color(0xFF2B1A00) // warna teks/ikon di atas permukaan Zamrud
-private val Teks = Color(0xFFF2F7F4)
-private val Redup = Color(0xFFA7BFB2)
-private val Samar = Color(0xFF6E8A7B)
+val Aksen = ZamrudTerang // aksen Premium = warna zamrud aplikasi
+val AksenGelap = Zamrud
+val DiAtasAksen = Color(0xFF2B1A00) // warna teks/ikon di atas permukaan Zamrud
+val Teks = Color(0xFFF2F7F4)
+val Redup = Color(0xFFA7BFB2)
+val Samar = Color(0xFF6E8A7B)
 private val BintangW = Color(0xFFFFC94D)
 private val MerahLembut = Color(0xFFE88A8A)
 
@@ -5611,7 +5611,7 @@ fun LayarAkun(
 
 // Bilah atas halaman turunan menu Akun: tombol kembali + judul.
 @Composable
-private fun BilahHalaman(
+fun BilahHalaman(
     judul: String,
     onKembali: () -> Unit,
 ) {
@@ -5939,7 +5939,7 @@ private fun LogoGoogle(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun JudulMenu(teks: String) {
+fun JudulMenu(teks: String) {
     Text(
         teks,
         fontSize = 13.sp,
@@ -9674,3 +9674,4 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 }
+
