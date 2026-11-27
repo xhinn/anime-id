@@ -43,11 +43,11 @@ dependencies {
     implementation("androidx.compose.ui:ui:1.11.2")
     implementation("androidx.compose.foundation:foundation:1.11.2")
     implementation("androidx.compose.ui:ui-tooling-preview:1.11.2")
-    implementation("androidx.credentials:credentials:1.5.0")
-    implementation("androidx.credentials:credentials-play-services-auth:1.5.0")
+    implementation("androidx.credentials:credentials:1.6.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.6.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation("androidx.compose.material3:material3:1.5.0")
-    implementation("androidx.palette:palette:1.0.0")
+    implementation("androidx.palette:palette:1.1.0")
     implementation("dev.chrisbanes.haze:haze:1.6.10")
     implementation("androidx.media3:media3-exoplayer:1.11.1")
     implementation("androidx.media3:media3-ui:1.11.1")
@@ -59,5 +59,6 @@ dependencies {
     implementation("com.google.firebase:firebase-auth:23.0.0")
     implementation("com.google.firebase:firebase-firestore:25.0.0")
     implementation("androidx.media3:media3-datasource-okhttp:1.11.1")
-    implementation("androidx.work:work-runtime-ktx:2.10.0")
+    implementation("androidx.work:work-runtime-ktx:2.12.0")
 }
+
