@@ -5,9 +5,8 @@
 
 Aplikasi nonton anime untuk Android.
 
-Dibangun dengan Kotlin + Jetpack Compose + Media3 ExoPlayer (pemutaran HLS).
-Katalog anime diambil dari Cloudflare Pages, video diputar lewat HLS per judul.
-Unduhan episode tersedia lewat GitHub Release.
+Tonton anime dengan subtitle Indonesia, unduh episode untuk ditonton offline,
+simpan favorit, dan lanjutkan menonton dari posisi terakhir.
 
 ## Tangkapan layar
 
@@ -16,12 +15,27 @@ _(Tangkapan layar menyusul.)_
 ## Fitur
 
 - Jelajah katalog anime dan jadwal rilis
-- Pemutar video HLS (1080p / 720p / 480p / 360p) dengan subtitle hardsub
-- Picture-in-Picture (PiP)
-- Unduhan episode
+- Pemutar video (1080p / 720p / 480p / 360p) dengan subtitle hardsub
+- Picture-in-Picture (PiP) — video tetap jalan saat membuka aplikasi lain
+- Unduhan episode untuk ditonton offline
 - Favorit dan lanjut menonton
-- Komentar episode (Firebase Auth + Firestore)
+- Komentar episode
 - Mode layar penuh dengan rotasi otomatis
+- Masuk dengan akun Google untuk sinkronisasi progres dan komentar
+
+## Cara memakai
+
+1. Buka aplikasi, jelajahi katalog atau cari judul.
+2. Pilih episode, lalu putar.
+3. Ketuk layar untuk menampilkan kontrol (putar/jeda, layar penuh, kecepatan).
+4. Untuk menonton offline, unduh episode dari halaman detail.
+5. Masuk dengan Google untuk menyimpan favorit, progres, dan komentar.
+
+## Cara mendapatkan aplikasi
+
+- Bangun sendiri dari kode sumber (lihat "Cara build" di bawah).
+- APK debug terbaru tersedia sebagai artifact di halaman Actions GitHub.
+- Distribusi lewat GitHub Release sedang disiapkan.
 
 ## Teknologi
 
