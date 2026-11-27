@@ -1,0 +1,18 @@
+# Konfigurasi editor + ktlint untuk Anime.id.
+root = true
+
+[*]
+end_of_line = lf
+insert_final_newline = true
+charset = utf-8
+trim_trailing_whitespace = true
+
+[*.{kt,kts}]
+indent_style = space
+indent_size = 4
+max_line_length = 140
+# Nama fungsi PascalCase adalah konvensi Compose untuk fungsi @Composable
+# (TemaAnime, LayarPutar, PemutarExo, ...). Aturan penamaan ktlint
+# menandainya sebagai galat, jadi aturan itu dimatikan — bukan karena
+# kodenya salah, melainkan karena aturannya tidak cocok untuk Compose.
+ktlint_standard_function-naming = disabled
