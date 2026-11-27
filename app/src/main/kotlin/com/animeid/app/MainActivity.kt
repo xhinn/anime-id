@@ -7577,6 +7577,17 @@ fun PemutarExo(
     var ingin by remember { mutableStateOf(true) }
     var berakhir by remember { mutableStateOf(false) }
     var seret by remember { mutableStateOf(false) }
+    // Lompat ketuk dua kali (gaya YouTube): kiri = mundur, kanan = maju, tengah = putar/jeda.
+    // Setelah ketukan ganda pertama, ketukan tunggal berikutnya menumpuk (+10, +20, +30 ...)
+    // selama jeda antar ketukan < 0,8 dtk.
+    val detikLompat = 10
+    var lompatAktif by remember { mutableStateOf(false) }
+    var lompatArah by remember { mutableStateOf(1) } // -1 mundur, 1 maju
+    var lompatTotal by remember { mutableStateOf(0) }
+    var lompatKunci by remember { mutableStateOf(0) }
+    var lompatTitik by remember { mutableStateOf(Offset.Zero) }
+    var ketukTerakhir by remember { mutableStateOf(0L) }
+    var zonaTerakhir by remember { mutableStateOf(-9) }
     // jendela kecil (PiP): kontrol disembunyikan supaya tidak menutupi video mungil
     val konfigPemutar = androidx.compose.ui.platform.LocalConfiguration.current
     val modePip =
@@ -7944,6 +7955,26 @@ fun PemutarExo(
         }
     }
 
+    fun lompat(arah: Int) {
+        if (durasi <= 0) return
+        if (!lompatAktif || arah != lompatArah) lompatTotal = 0
+        lompatArah = arah
+        lompatTotal += detikLompat
+        lompatAktif = true
+        val target = (exo.currentPosition + arah * detikLompat * 1000L).coerceIn(0L, durasi.toLong())
+        sudahTamat = false
+        exo.seekTo(target)
+        posisi = target.toInt()
+        lompatKunci += 1
+    }
+    // mode lompat berakhir bila tidak ada ketukan baru dalam 0,8 dtk
+    LaunchedEffect(lompatKunci) {
+        if (lompatKunci > 0) {
+            delay(800)
+            lompatAktif = false
+        }
+    }
+
     var pecahanGeser by remember { mutableStateOf(0f) }
     LaunchedEffect(posisi, durasi, seret) {
         if (!seret) pecahanGeser = if (durasi > 0) posisi.toFloat() / durasi else 0f
@@ -7962,15 +7993,61 @@ fun PemutarExo(
             onRelease = { it.player = null },
             modifier = Modifier.fillMaxSize(),
         )
-        // Lapisan ketuk: tampil/sembunyi kontrol
+        // Lapisan ketuk: ketuk tunggal = tampil/sembunyi kontrol, ketuk dua kali di
+        // kiri/kanan = mundur/maju 10 dtk (menumpuk), ketuk dua kali di tengah = putar/jeda.
+        // Deteksi ganda dibuat manual (bukan onDoubleTap) agar ketuk tunggal tidak tertunda.
         Box(
-            Modifier.fillMaxSize().clickable {
-                tampil = !tampil
-                if (!tampil) {
-                    menuKecepatan = false
-                    menuKualitas = false
+            Modifier.fillMaxSize().pointerInput(modePip) {
+                detectTapGestures { titik ->
+                    val lebar = size.width.toFloat()
+                    val zona =
+                        when {
+                            titik.x < lebar / 3f -> -1
+                            titik.x > lebar * 2f / 3f -> 1
+                            else -> 0
+                        }
+                    val sekarang = android.os.SystemClock.uptimeMillis()
+                    if (lompatAktif && zona != 0) {
+                        lompatTitik = titik
+                        lompat(zona)
+                    } else if (zona == zonaTerakhir && sekarang - ketukTerakhir < 300L) {
+                        ketukTerakhir = 0L
+                        zonaTerakhir = -9
+                        tampil = false
+                        menuKecepatan = false
+                        menuKualitas = false
+                        if (zona != 0) {
+                            lompatTitik = titik
+                            lompat(zona)
+                        } else if (exo.playbackState == Player.STATE_ENDED) {
+                            sudahTamat = false
+                            exo.seekTo(0)
+                            exo.play()
+                        } else if (exo.playWhenReady) {
+                            exo.pause()
+                        } else {
+                            exo.play()
+                        }
+                    } else {
+                        ketukTerakhir = sekarang
+                        zonaTerakhir = zona
+                        tampil = !tampil
+                        if (!tampil) {
+                            menuKecepatan = false
+                            menuKualitas = false
+                        }
+                    }
                 }
             },
+        )
+        // Umpan balik lompat: setengah layar yang diketuk menyala + panah + "+20 detik"
+        UmpanBalikLompat(
+            aktif = lompatAktif && !gagalTotal && !modePip,
+            arah = lompatArah,
+            total = lompatTotal,
+            kunci = lompatKunci,
+            titik = lompatTitik,
+            modifier = Modifier.matchParentSize(),
         )
 
         if (memuatAwal && !gagalTotal) {
@@ -8273,6 +8350,166 @@ fun PemutarExo(
         }
     }
 }
+
+// Umpan balik lompat ketuk dua kali, gaya 2026: sapuan cahaya lembut di sisi yang diketuk,
+// riak melebar dari titik ketuk, dan pil kaca berisi panah bergelombang + total detik
+// yang "memantul" tiap ketukan.
+@Composable
+private fun UmpanBalikLompat(
+    aktif: Boolean,
+    arah: Int,
+    total: Int,
+    kunci: Int,
+    titik: Offset,
+    modifier: Modifier = Modifier,
+) {
+    val alfa by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (aktif) 1f else 0f,
+        animationSpec =
+            androidx.compose.animation.core
+                .tween(if (aktif) 80 else 280),
+        label = "lompatAlfa",
+    )
+    val riak =
+        remember {
+            androidx.compose.animation.core
+                .Animatable(1f)
+        }
+    val pantul =
+        remember {
+            androidx.compose.animation.core
+                .Animatable(1f)
+        }
+    LaunchedEffect(kunci) {
+        if (kunci > 0) {
+            launch {
+                riak.snapTo(0f)
+                riak.animateTo(
+                    1f,
+                    androidx.compose.animation.core
+                        .tween(550, easing = LinearOutSlowInEasing),
+                )
+            }
+            pantul.snapTo(0.84f)
+            pantul.animateTo(
+                1f,
+                androidx.compose.animation.core
+                    .spring(dampingRatio = 0.45f, stiffness = 520f),
+            )
+        }
+    }
+    val gerak =
+        androidx.compose.animation.core
+            .rememberInfiniteTransition(label = "lompatPanah")
+    val fase by gerak.animateFloat(
+        initialValue = 0f,
+        targetValue = 2f,
+        animationSpec =
+            androidx.compose.animation.core.infiniteRepeatable(
+                androidx.compose.animation.core
+                    .tween(700, easing = androidx.compose.animation.core.LinearEasing),
+            ),
+        label = "lompatFase",
+    )
+    if (alfa <= 0.01f) return
+
+    val maju = arah > 0
+    val sisi = if (maju) Alignment.CenterEnd else Alignment.CenterStart
+    Box(modifier.graphicsLayer { this.alpha = alfa }) {
+        // sapuan cahaya lembut (tanpa tepi keras) di setengah layar yang diketuk
+        Box(
+            Modifier.align(sisi).fillMaxHeight().fillMaxWidth(0.5f).background(
+                Brush.horizontalGradient(
+                    if (maju) {
+                        listOf(Color.Transparent, Color.White.copy(alpha = 0.16f))
+                    } else {
+                        listOf(Color.White.copy(alpha = 0.16f), Color.Transparent)
+                    },
+                ),
+            ),
+        )
+        // riak dari titik ketuk
+        Canvas(Modifier.matchParentSize()) {
+            val p = riak.value
+            if (p < 1f) {
+                drawCircle(
+                    Color.White.copy(alpha = 0.22f * (1f - p)),
+                    radius = size.width * 0.32f * p,
+                    center = titik,
+                )
+            }
+        }
+        // pil kaca: panah + total detik
+        Box(Modifier.align(sisi).fillMaxHeight().fillMaxWidth(0.5f), contentAlignment = Alignment.Center) {
+            val panah: @Composable () -> Unit = {
+                Row(horizontalArrangement = Arrangement.spacedBy((-4).dp)) {
+                    for (i in 0 until 2) {
+                        val urut = if (maju) i else 1 - i // gelombang bergerak ke arah lompat
+                        val terang = fase.toInt().coerceIn(0, 1) == urut
+                        Canvas(Modifier.size(width = 14.dp, height = 18.dp).rotate(if (maju) 0f else 180f)) {
+                            val p = Path()
+                            p.moveTo(size.width * 0.3f, size.height * 0.18f)
+                            p.lineTo(size.width * 0.75f, size.height * 0.5f)
+                            p.lineTo(size.width * 0.3f, size.height * 0.82f)
+                            drawPath(
+                                p,
+                                Color.White.copy(alpha = if (terang) 1f else 0.4f),
+                                style =
+                                    Stroke(
+                                        width = size.width * 0.2f,
+                                        cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                                        join = androidx.compose.ui.graphics.StrokeJoin.Round,
+                                    ),
+                            )
+                        }
+                    }
+                }
+            }
+            Row(
+                Modifier
+                    .graphicsLayer {
+                        scaleX = pantul.value
+                        scaleY = pantul.value
+                    }.clip(RoundedCornerShape(50))
+                    .background(Color.Black.copy(alpha = 0.42f))
+                    .tepiKaca()
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (!maju) panah()
+                androidx.compose.animation.AnimatedContent(
+                    targetState = total,
+                    transitionSpec = {
+                        (androidx.compose.animation.slideInVertically { it / 2 } + fadeIn()) togetherWith
+                            (androidx.compose.animation.slideOutVertically { -it / 2 } + fadeOut())
+                    },
+                    label = "lompatAngka",
+                ) { n ->
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            (if (maju) "+" else "\u2212") + n,
+                            color = Color.White,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.width(3.dp))
+                        Text(
+                            "dtk",
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(bottom = 2.dp),
+                        )
+                    }
+                }
+                if (maju) panah()
+            }
+        }
+    }
+}
+
+// garis tepi tipis pada pil kaca
+private fun Modifier.tepiKaca(): Modifier = this.border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(50))
 
 // ================= Akar aplikasi =================
 @Composable
