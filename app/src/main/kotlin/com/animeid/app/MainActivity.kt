@@ -112,6 +112,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -3136,6 +3137,23 @@ fun LayarBeranda(
             else -> sudahTayang.filter { x -> pen in x.genres }.sortedByDescending { x -> x.skor }
         }
     val normal = !modeCari && pen == null
+    // Beranda & halaman penuh memakai LazyColumn yang sama, jadi posisi gulir ikut terbawa.
+    // Simpan posisi Beranda, buka halaman penuh dari atas, lalu pulihkan saat kembali.
+    val daftarBeranda = rememberLazyListState()
+    var posBeranda by remember { mutableStateOf(0 to 0) }
+    LaunchedEffect(pen) {
+        if (pen != null) {
+            daftarBeranda.scrollToItem(0)
+        } else {
+            daftarBeranda.scrollToItem(posBeranda.first, posBeranda.second)
+        }
+    }
+    LaunchedEffect(pen, modeCari) {
+        if (pen == null && !modeCari) {
+            snapshotFlow { daftarBeranda.firstVisibleItemIndex to daftarBeranda.firstVisibleItemScrollOffset }
+                .collect { posBeranda = it }
+        }
+    }
     val kabar = remember(versiKabar) { bacaKabar(ctx) }
     val adaBaru = kabar.any { !it.dibaca }
 
@@ -3158,6 +3176,7 @@ fun LayarBeranda(
             LazyColumn(
                 // Normal: daftar dipotong tepat di bawah status bar.
                 Modifier.fillMaxSize().then(if (normal) Modifier.padding(top = atas) else Modifier),
+                state = daftarBeranda,
                 contentPadding = PaddingValues(top = if (normal) 0.dp else atas, bottom = 118.dp),
             ) {
                 if (normal) {
