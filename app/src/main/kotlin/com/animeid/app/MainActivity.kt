@@ -112,7 +112,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -3137,23 +3136,6 @@ fun LayarBeranda(
             else -> sudahTayang.filter { x -> pen in x.genres }.sortedByDescending { x -> x.skor }
         }
     val normal = !modeCari && pen == null
-    // Beranda & halaman penuh memakai LazyColumn yang sama, jadi posisi gulir ikut terbawa.
-    // Simpan posisi Beranda, buka halaman penuh dari atas, lalu pulihkan saat kembali.
-    val daftarBeranda = rememberLazyListState()
-    var posBeranda by remember { mutableStateOf(0 to 0) }
-    LaunchedEffect(pen) {
-        if (pen != null) {
-            daftarBeranda.scrollToItem(0)
-        } else {
-            daftarBeranda.scrollToItem(posBeranda.first, posBeranda.second)
-        }
-    }
-    LaunchedEffect(pen, modeCari) {
-        if (pen == null && !modeCari) {
-            snapshotFlow { daftarBeranda.firstVisibleItemIndex to daftarBeranda.firstVisibleItemScrollOffset }
-                .collect { posBeranda = it }
-        }
-    }
     val kabar = remember(versiKabar) { bacaKabar(ctx) }
     val adaBaru = kabar.any { !it.dibaca }
 
@@ -3176,7 +3158,6 @@ fun LayarBeranda(
             LazyColumn(
                 // Normal: daftar dipotong tepat di bawah status bar.
                 Modifier.fillMaxSize().then(if (normal) Modifier.padding(top = atas) else Modifier),
-                state = daftarBeranda,
                 contentPadding = PaddingValues(top = if (normal) 0.dp else atas, bottom = 118.dp),
             ) {
                 if (normal) {
@@ -4532,6 +4513,23 @@ private fun BarisRilis(
 }
 
 @Composable
+private fun PilihanSegmen(
+    label: String,
+    aktif: Boolean,
+    onKlik: () -> Unit,
+) {
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (aktif) Kartu2 else Color.Transparent)
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onKlik() }
+            .padding(horizontal = 14.dp, vertical = 7.dp),
+    ) {
+        Text(label, fontSize = 13.sp, fontWeight = if (aktif) FontWeight.Bold else FontWeight.Medium, color = if (aktif) Teks else Samar)
+    }
+}
+
+@Composable
 fun LayarJadwal(
     favorit: Set<String>,
     onToggleFav: (Judul) -> Unit,
@@ -4540,6 +4538,7 @@ fun LayarJadwal(
     val lingkupJadwal = rememberCoroutineScope()
     LaunchedEffect(Unit) { JadwalRilis.muat() }
     var hari by rememberSaveable { mutableStateOf(0) }
+    var hanyaKatalog by rememberSaveable { mutableStateOf(false) }
     var lihatSudah by rememberSaveable { mutableStateOf(false) }
     var sekarang by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
@@ -4586,16 +4585,7 @@ fun LayarJadwal(
             )
             Text(zona, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Samar)
         }
-        val cH = kalHari[hari]
-        val namaHari = lengkap[cH.get(java.util.Calendar.DAY_OF_WEEK) - 1] + ", " + cH.get(java.util.Calendar.DAY_OF_MONTH)
-        Text(
-            if (hari == 0) "Hari ini" else namaHari,
-            modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 6.dp),
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = Teks,
-        )
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(16.dp))
         Row(
             Modifier
                 .fillMaxWidth()
@@ -4619,10 +4609,28 @@ fun LayarJadwal(
             }
         }
         Spacer(Modifier.height(18.dp))
+        val cH = kalHari[hari]
+        val namaHari = lengkap[cH.get(java.util.Calendar.DAY_OF_WEEK) - 1] + ", " + cH.get(java.util.Calendar.DAY_OF_MONTH)
+        val diKatalog = tiapHari[hari].count { cocok[it] != null }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(if (hari == 0) "Hari ini" else namaHari, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Teks)
+                Text(
+                    if (slot.isEmpty()) namaHari else "${tiapHari[hari].size} rilis, $diKatalog di katalog",
+                    fontSize = 12.5.sp,
+                    color = Samar,
+                )
+            }
+            Row(Modifier.clip(RoundedCornerShape(50)).background(Kartu).padding(3.dp)) {
+                PilihanSegmen("Semua", !hanyaKatalog) { hanyaKatalog = false }
+                PilihanSegmen("Di katalog", hanyaKatalog) { hanyaKatalog = true }
+            }
+        }
+        Spacer(Modifier.height(14.dp))
         if (slot.isEmpty()) {
             KeadaanMuatAtauGagal(gagal = JadwalRilis.gagal) { lingkupJadwal.launch { JadwalRilis.muat(paksa = true) } }
         } else {
-            val tampil = tiapHari[hari]
+            val tampil = tiapHari[hari].filter { !hanyaKatalog || cocok[it] != null }
             val sudah = tampil.filter { slot[it].waktu * 1000L <= sekarang }
             val akan = tampil.filter { slot[it].waktu * 1000L > sekarang }
             val utama = if (hari == 0) akan.firstOrNull() else null
@@ -4631,7 +4639,7 @@ fun LayarJadwal(
                 Box(Modifier.fillMaxWidth().padding(top = 48.dp), contentAlignment = Alignment.TopCenter) {
                     KeadaanKosong(
                         "Belum ada rilis",
-                        "Tidak ada jadwal tayang hari ini.",
+                        if (hanyaKatalog) "Tidak ada rilis hari ini yang ada di katalog." else "Tidak ada jadwal tayang hari ini.",
                     )
                 }
             } else {
